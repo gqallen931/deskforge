@@ -1,6 +1,6 @@
 # Deskforge 工程架构文档
 
-> **版本**: 0.4.0
+> **版本**: 0.5.0
 > **状态**: 活跃开发中
 > **定位**: 本地优先、可安装到 Windows 的个人工作台桌面软件
 > **技术栈**: Electron + React + Vite + 原生 HTML/CSS/JavaScript + SQLite
@@ -31,6 +31,7 @@
 | 设置 | `settings` 键值表 | v1 | 白名单保存用户和显示偏好 |
 | 工作台模型 | `workspaces`、`projects`、`tags`、`task_tags`、`workspace_files`、`notifications` | v1 | P0 本地工作台业务数据 |
 | 稳定性模型 | `schema_migrations`、`backup_history`、`reminders`、`tasks.project_id` | v1 | 安全升级、备份索引、项目任务和本地提醒 |
+| 本地身份模型 | `users` + Main 内存会话 | v1 | scrypt 密码哈希、登录限流和 IPC 授权 |
 
 当前不启用 MySQL 或独立 Web 后端。需要账号、跨设备同步或多人协作时，再评估 Python + FastAPI + MySQL/PostgreSQL。
 
@@ -58,6 +59,7 @@ deskforge/
 │   ├── workbench-service.cjs     # 工作区、项目、标签、文件、通知和搜索
 │   ├── migrations.cjs            # 顺序迁移与迁移前 SQLite 快照
 │   ├── reminder-service.cjs      # 本地提醒生命周期
+│   ├── auth-service.cjs          # 本地账户、密码和窗口会话
 │   └── *-check.cjs               # 数据、迁移、提醒和业务回归验证
 ├── src/
 │   ├── main.jsx                  # React 入口
@@ -95,10 +97,10 @@ deskforge/
     │   ├─ 创建 BrowserWindow
     │   ├─ 初始化 %APPDATA%/Deskforge/deskforge.db
     │   ├─ 初始化 Repository / Service
-    │   └─ 注册存储、任务、工作台、数据管理与设置 IPC
+    │   └─ 注册公开鉴权通道与受保护业务 IPC
     │
     ├─ Preload（contextIsolation=true）
-    │   └─ 暴露 tasks、workbench、projects、files、tags、notifications 等最小业务 API
+    │   └─ 暴露 auth、tasks、workbench、projects、files 等最小业务 API
     │
     └─ Renderer
         ├─ React 加载全屏 Dashboard iframe
@@ -112,6 +114,7 @@ deskforge/
 | `contextIsolation` | `true` | 隔离网页与 Node.js 上下文 |
 | `nodeIntegration` | `false` | 阻止页面直接访问 Node.js |
 | Preload API | `storage`、`tasks`、`groups`、`data`、`settings` | 只暴露业务操作，不暴露 SQL 和文件系统 |
+| Main 会话守卫 | 所有业务 IPC | 未登录 Renderer 即使直接调用 IPC 也会收到 `AUTH_REQUIRED` |
 
 ### 3.3 任务数据链路
 
@@ -157,6 +160,7 @@ deskforge/
 | `notifications:*` | Renderer → Main | 本地通知和已读状态 |
 | `reminders:*` | Renderer → Main | 本地提醒创建、查询、领取状态和删除 |
 | `data:backups:*` | Renderer → Main | 备份历史列表、恢复和删除 |
+| `auth:*` | Renderer → Main | 初始化账户、登录、退出、修改密码与会话状态 |
 
 没有 HTTP API、远程数据库和账号服务。
 
@@ -183,6 +187,8 @@ npm run verify:data
 npm run verify:workbench
 npm run verify:migrations
 npm run verify:reminders
+npm run verify:auth
+npm run verify:ipc
 npm run build
 npm run verify:package-assets
 ```
@@ -233,3 +239,4 @@ npm run package:win
 | 0.2.0 | 2026-08-19 | JSON 导入导出、备份恢复、设置、Deskforge 品牌和 Windows 图标 | 建立可迁移、可恢复的产品化单机版本 |
 | 0.3.0 | 2026-08-19 | 工作区、项目、标签、文件、通知、搜索、统计和备份 v2 | 完成本地个人工作台 P0 业务闭环 |
 | 0.4.0 | 2026-08-19 | 数据库迁移、项目任务、备份历史、Windows 提醒与 CI | 支持长期本地数据安全升级 |
+| 0.5.0 | 2026-08-19 | 本地账户鉴权、全 IPC 会话守卫与契约检查 | 建立设备级安全边界；AI 与消息保留为开发中 |

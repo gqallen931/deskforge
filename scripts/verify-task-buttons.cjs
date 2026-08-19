@@ -2,8 +2,11 @@ const endpoint = process.argv[2] || 'http://127.0.0.1:9224/json';
 
 async function main() {
   const targets = await fetch(endpoint).then((response) => response.json());
-  const page = targets.find((target) => target.type === 'page');
+  let page = targets.find((target) => target.type === 'page');
   if (!page) throw new Error('packaged renderer target not found');
+  await ensureAuthenticated(page);
+  await new Promise((resolve) => setTimeout(resolve, 700));
+  page = (await fetch(endpoint).then((response) => response.json())).find((target) => target.type === 'page');
 
   const result = await evaluate(page.webSocketDebuggerUrl, `(async () => {
     const api = window.deskforge.tasks;
@@ -67,6 +70,10 @@ async function main() {
     throw new Error(`task button verification failed: ${JSON.stringify(result)}`);
   }
   console.log('Task buttons CRUD passed');
+}
+
+async function ensureAuthenticated(page) {
+  return evaluate(page.webSocketDebuggerUrl, `(async()=>{const s=await window.deskforge.auth.status();if(s.authenticated)return false;if(s.needsSetup)await window.deskforge.auth.register({username:'testowner',displayName:'Test Owner',password:'Deskforge123'});else await window.deskforge.auth.login({username:'testowner',password:'Deskforge123'});location.reload();return true})()`);
 }
 
 function evaluate(webSocketUrl, expression) {

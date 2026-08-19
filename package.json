@@ -3,7 +3,7 @@
   "productName": "Deskforge",
   "description": "A local-first personal workbench for Windows",
   "private": true,
-  "version": "0.4.0",
+  "version": "0.5.0",
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
@@ -15,6 +15,8 @@
     "verify:workbench": "node electron/workbench-service-check.cjs",
     "verify:migrations": "node electron/migrations-check.cjs",
     "verify:reminders": "node electron/reminder-service-check.cjs",
+    "verify:auth": "node electron/auth-service-check.cjs",
+    "verify:ipc": "node scripts/verify-ipc-contract.cjs",
     "verify:package-assets": "node scripts/verify-packaged-assets.cjs",
     "verify:packaged-runtime": "node scripts/verify-packaged-runtime.cjs",
     "verify:task-buttons": "node scripts/verify-task-buttons.cjs",

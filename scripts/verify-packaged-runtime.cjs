@@ -2,8 +2,11 @@ const endpoint = process.argv[2] || 'http://127.0.0.1:9223/json';
 
 async function main() {
   const targets = await fetch(endpoint).then((response) => response.json());
-  const page = targets.find((target) => target.type === 'page');
+  let page = targets.find((target) => target.type === 'page');
   if (!page) throw new Error('packaged renderer target not found');
+  await ensureAuthenticated(page);
+  await new Promise((resolve) => setTimeout(resolve, 700));
+  page = (await fetch(endpoint).then((response) => response.json())).find((target) => target.type === 'page');
 
   const result = await evaluate(page.webSocketDebuggerUrl, `(async () => {
     const root = document.querySelector('#root');
@@ -26,6 +29,11 @@ async function main() {
   }
 
   console.log(`Packaged runtime rendered: ${result.frameTitle}`);
+}
+
+async function ensureAuthenticated(page) {
+  const changed = await evaluate(page.webSocketDebuggerUrl, `(async()=>{const s=await window.deskforge.auth.status();if(s.authenticated)return false;if(s.needsSetup)await window.deskforge.auth.register({username:'testowner',displayName:'Test Owner',password:'Deskforge123'});else await window.deskforge.auth.login({username:'testowner',password:'Deskforge123'});location.reload();return true})()`);
+  return changed;
 }
 
 function evaluate(webSocketUrl, expression) {

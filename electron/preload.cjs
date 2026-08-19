@@ -1,6 +1,13 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('deskforge', {
+  auth: {
+    status: () => ipcRenderer.invoke('auth:status'),
+    register: (input) => ipcRenderer.invoke('auth:register', input),
+    login: (input) => ipcRenderer.invoke('auth:login', input),
+    logout: () => ipcRenderer.invoke('auth:logout'),
+    changePassword: (input) => ipcRenderer.invoke('auth:change-password', input),
+  },
   platform: process.platform,
   storage: {
     load: () => ipcRenderer.invoke('db:load'),

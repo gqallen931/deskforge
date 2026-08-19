@@ -23,6 +23,15 @@ const MIGRATIONS = [
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`);
   } },
+  { version: 5, name: 'local-users', up(db) {
+    db.exec(`CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL UNIQUE COLLATE NOCASE,
+      display_name TEXT NOT NULL, password_hash TEXT NOT NULL, salt TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'owner', failed_attempts INTEGER NOT NULL DEFAULT 0,
+      locked_until TEXT, last_login_at TEXT, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`);
+  } },
 ];
 
 function runMigrations(db, options = {}) {

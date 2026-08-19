@@ -2,7 +2,7 @@
 
 > **文档类型**: 开发过程记录（Development Journal）
 > **执行日期**: 2026-08-19
-> **基于文档**: [project-architecture.md](./project-architecture.md) v0.4.0
+> **基于文档**: [project-architecture.md](./project-architecture.md) v0.5.0
 > **执行环境**: Windows 10.0.19045、Node.js 24.18.0、npm 11.16.0、PowerShell
 > **记录人**: Codex
 
@@ -307,6 +307,23 @@ createDesktopShortcut=true
 ✅ SHA-256: 8A0586EDA1630BA2B66476F626AFA67E2A26464839C85E1FFCC345AD695329CD
 ```
 
+### 2.13 阶段十三：本地用户鉴权与 API 全链路审计
+
+新增 `users` 表和本地 AuthService。密码通过随机盐和 scrypt 保存，错误登录达到阈值后临时锁定；会话绑定 Electron 窗口，所有业务 IPC 统一执行主进程鉴权。React 入口负责首次初始化和登录，设置中心支持修改密码，账户菜单支持退出登录。
+
+审计发现原 AI 弹窗使用静态示例。按用户要求，AI 建议和消息入口均保留，但只明确显示“正在开发中”，本阶段不修改其产品逻辑，也不计入完成功能。
+
+新增 `verify:ipc`，验证 Preload 的 49 个调用通道全部在 Main 注册；真实 EXE 测试同步增加测试账户初始化流程。
+
+```text
+✅ Local authentication, password hashing and session guard passed
+✅ IPC contract passed: 49 renderer channels are registered in Main
+✅ Packaged runtime rendered: Deskforge · 个人工作台
+✅ Deskforge branding/settings/backup passed
+✅ Deskforge-Setup-0.5.0.exe: 92,683,775 bytes
+✅ SHA-256: E5ADD23899658AD74034BC76ECE3715DA85E412BD8CFF13AD44FDC6C69C4F0E3
+```
+
 ---
 
 ## 3. 关键技术决策记录
@@ -354,6 +371,8 @@ createDesktopShortcut=true
 | 数据库迁移 | 快照、顺序执行、幂等 | `Database migrations and pre-migration snapshot passed` | ✅ |
 | 本地提醒 | 一次性和周期提醒不重复领取 | `Local reminder lifecycle passed` | ✅ |
 | 0.4.0 真实 EXE | 页面、品牌、设置、备份 | 两项 CDP 验证通过 | ✅ |
+| 本地鉴权 | 哈希、登录、退出、改密、限流 | `Local authentication... passed` | ✅ |
+| IPC 契约 | Preload 通道均有 Main 实现 | 49/49 | ✅ |
 
 ---
 
@@ -415,4 +434,5 @@ docs/bugs/2026-08-19_packaged-app-black-screen.md
 | P1 | 将项目、标签、设置继续迁移为标准化业务表 | 任务模型完成后 |
 | P1 | 完成素材授权审计 | 商业发布前 |
 | P1 | 增加备份自动保留策略和通知点击定位任务 | 数据规模增长前 |
+| P1 | 设计云端账户、同步、多人消息和设备撤销 | 联网商业版阶段 |
 | P2 | 逐模块将 iframe 内页面迁移为 React 组件 | 保持视觉回归的前提下 |

@@ -824,7 +824,7 @@ body.deskforge-reduce-motion *, body.deskforge-reduce-motion *::before, body.des
     var settings = DESKFORGE && DESKFORGE.settings ? await DESKFORGE.settings.get() : { displayName: 'Brandon', role: '产品经理', workspaceName: '个人工作台', compactMode: false, reduceMotion: false };
     var overlay = Modal.open({
       title: 'Deskforge 设置', width: 560,
-      body: '<div class="wbi-settings-grid"><div class="wbi-field"><label class="wbi-field__label">显示名称</label><input class="wbi-input" id="wbiDisplayName" maxlength="40" value="' + esc(settings.displayName) + '"></div><div class="wbi-field"><label class="wbi-field__label">角色</label><input class="wbi-input" id="wbiRole" maxlength="40" value="' + esc(settings.role) + '"></div></div><div class="wbi-field"><label class="wbi-field__label">工作区名称</label><input class="wbi-input" id="wbiWorkspace" maxlength="60" value="' + esc(settings.workspaceName) + '"></div><label class="wbi-check"><input type="checkbox" id="wbiCompact"' + (settings.compactMode ? ' checked' : '') + '> 使用紧凑任务列表</label><label class="wbi-check"><input type="checkbox" id="wbiMotion"' + (settings.reduceMotion ? ' checked' : '') + '> 减少界面动态效果</label><div class="wbi-data-actions"><button class="wbi-btn wbi-btn--ghost" id="wbiExport">导出 JSON</button><button class="wbi-btn wbi-btn--ghost" id="wbiImport">导入 JSON</button><button class="wbi-btn wbi-btn--ghost" id="wbiBackup">立即备份</button><button class="wbi-btn wbi-btn--ghost" id="wbiRestore">从文件恢复</button><button class="wbi-btn wbi-btn--ghost" id="wbiBackupHistory">备份历史</button></div>',
+      body: '<div class="wbi-settings-grid"><div class="wbi-field"><label class="wbi-field__label">显示名称</label><input class="wbi-input" id="wbiDisplayName" maxlength="40" value="' + esc(settings.displayName) + '"></div><div class="wbi-field"><label class="wbi-field__label">角色</label><input class="wbi-input" id="wbiRole" maxlength="40" value="' + esc(settings.role) + '"></div></div><div class="wbi-field"><label class="wbi-field__label">工作区名称</label><input class="wbi-input" id="wbiWorkspace" maxlength="60" value="' + esc(settings.workspaceName) + '"></div><label class="wbi-check"><input type="checkbox" id="wbiCompact"' + (settings.compactMode ? ' checked' : '') + '> 使用紧凑任务列表</label><label class="wbi-check"><input type="checkbox" id="wbiMotion"' + (settings.reduceMotion ? ' checked' : '') + '> 减少界面动态效果</label><div class="wbi-data-actions"><button class="wbi-btn wbi-btn--ghost" id="wbiExport">导出 JSON</button><button class="wbi-btn wbi-btn--ghost" id="wbiImport">导入 JSON</button><button class="wbi-btn wbi-btn--ghost" id="wbiBackup">立即备份</button><button class="wbi-btn wbi-btn--ghost" id="wbiRestore">从文件恢复</button><button class="wbi-btn wbi-btn--ghost" id="wbiBackupHistory">备份历史</button><button class="wbi-btn wbi-btn--ghost" id="wbiChangePassword">修改密码</button></div>',
       buttons: [{ label: '取消', kind: 'ghost' }, { label: '保存设置', kind: 'primary', onClick: async function () {
         if (!DESKFORGE || !DESKFORGE.settings) return true;
         var saved = await DESKFORGE.settings.save({ displayName: $('#wbiDisplayName', overlay).value, role: $('#wbiRole', overlay).value, workspaceName: $('#wbiWorkspace', overlay).value, compactMode: $('#wbiCompact', overlay).checked, reduceMotion: $('#wbiMotion', overlay).checked });
@@ -836,6 +836,11 @@ body.deskforge-reduce-motion *, body.deskforge-reduce-motion *::before, body.des
     $('#wbiBackup', overlay).addEventListener('click', createBackup);
     $('#wbiRestore', overlay).addEventListener('click', restoreBackup);
     $('#wbiBackupHistory', overlay).addEventListener('click', openBackupHistoryModal);
+    $('#wbiChangePassword', overlay).addEventListener('click', openChangePasswordModal);
+  }
+
+  function openChangePasswordModal() {
+    var overlay = Modal.open({ title: '修改本地密码', small: true, body: '<div class="wbi-field"><label class="wbi-field__label">当前密码</label><input class="wbi-input" id="wbiCurrentPassword" type="password"></div><div class="wbi-field"><label class="wbi-field__label">新密码</label><input class="wbi-input" id="wbiNewPassword" type="password"><div class="wbi-note__time">至少 8 位，同时包含字母和数字</div></div>', buttons: [{ label: '取消', kind: 'ghost' }, { label: '确认修改', kind: 'primary', onClick: async function () { await DESKFORGE.auth.changePassword({ currentPassword: $('#wbiCurrentPassword', overlay).value, newPassword: $('#wbiNewPassword', overlay).value }); Toast.success('密码已更新'); return true; } }] });
   }
 
   async function openBackupHistoryModal() {
@@ -1747,17 +1752,10 @@ body.deskforge-reduce-motion *, body.deskforge-reduce-motion *::before, body.des
     Modal.open({
       title: 'AI 助手建议',
       body:
-        '<div style="font-size:12px;color:#9aa0a8;margin-bottom:12px;">基于任务内容与历史数据，AI 推荐关联以下评审文档：</div>' +
-        '<div class="wbi-ai-doc">' + icon('doc') + '<span>Deskforge 需求评审纪要</span><small>2026-08</small></div>' +
-        '<div class="wbi-ai-doc">' + icon('doc') + '<span>任务管理模块 PRD 评审记录</span><small>2025-02</small></div>' +
-        '<div class="wbi-ai-doc">' + icon('doc') + '<span>协同办公产品需求基线文档</span><small>2025-04</small></div>' +
-        '<div class="wbi-ai-risk">' + icon('alert') +
-          '<span><strong>潜在风险提示：</strong>需求范围可能变更。近期上游业务方提出 2 次范围调整建议，建议在评审会上先行确认需求边界与变更控制流程。</span>' +
-        '</div>',
+        '<div class="wbi-empty-hint">AI 建议功能正在开发中</div>',
       footer: true,
       buttons: [
-        { label: '忽略建议', kind: 'ghost', onClick: function () { Toast.info('已忽略本次建议'); } },
-        { label: '关联全部文档', kind: 'primary', icon: 'link', onClick: function () { Toast.success('已关联 3 份历史文档'); } },
+        { label: '关闭', kind: 'ghost' },
       ],
     });
   }
@@ -1787,7 +1785,7 @@ body.deskforge-reduce-motion *, body.deskforge-reduce-motion *::before, body.des
     var mailBtn = $('.wb-iconbtn[title="消息"]');
     if (mailBtn) {
       mailBtn.addEventListener('click', function () {
-        var panel = createEl('<div style="width:300px;"><div class="wbi-drop__head"><span>消息</span></div><div class="wbi-empty-hint">当前为本地单机模式<br>启用云协作后可收发消息</div></div>');
+        var panel = createEl('<div style="width:300px;"><div class="wbi-drop__head"><span>消息</span></div><div class="wbi-empty-hint">消息功能正在开发中</div></div>');
         Dropdown.open(this, panel, { align: 'right' });
       });
     }
@@ -1800,6 +1798,7 @@ body.deskforge-reduce-motion *, body.deskforge-reduce-motion *::before, body.des
           { label: '个人资料', icon: 'user', onClick: openSettingsModal },
           { label: '偏好设置', icon: 'gear', onClick: openSettingsModal },
           { divider: true },
+          { label: '退出登录', icon: 'logout', onClick: async function () { await DESKFORGE.auth.logout(); window.parent.location.reload(); } },
           { label: '关闭 Deskforge', icon: 'logout', danger: true, onClick: function () { return DESKFORGE.app.quit(); } },
         ], { align: 'left', width: 170, placement: 'top' });
       });

@@ -17,6 +17,7 @@
 | Windows 安装包 | ✅ 已生成 | NSIS 安装包 `release/Deskforge-Setup-0.4.0.exe` |
 | P0 工作台闭环 | ✅ 已实现 | 工作区、项目、标签、文件、通知、搜索和统计已接入 SQLite |
 | P1 稳定性 | ✅ 已实现 | 版本化迁移、迁移前快照、项目任务、备份历史与 Windows 提醒 |
+| 本地用户鉴权 | ✅ 已实现 | scrypt 密码哈希、登录限流、窗口会话及全业务 IPC 强制校验 |
 | 商业发布准备 | 🟡 进行中 | 缺少正式图标、作者信息、代码签名与完整业务回归 |
 
 ---
@@ -44,6 +45,8 @@ npm run verify:productization
 npm run verify:workbench
 npm run verify:migrations
 npm run verify:reminders
+npm run verify:auth
+npm run verify:ipc
 npm run verify:workbench-buttons
 
 # 6. 生成 Windows 安装包
@@ -84,3 +87,4 @@ npm run package:win
 | 2026-08-19 | [P0 个人工作台业务闭环](features/2026-08-19_p0-workbench-business-loop.md) | Done |
 | 2026-08-19 | [私有 GitHub 仓库发布](features/2026-08-19_private-github-repository.md) | Done |
 | 2026-08-19 | [P1 稳定性：迁移、项目任务、备份历史与提醒](features/2026-08-19_p1-stability-migrations-reminders.md) | Done |
+| 2026-08-19 | [本地鉴权与前后端 API 闭环审计](features/2026-08-19_local-auth-and-api-audit.md) | Done |
