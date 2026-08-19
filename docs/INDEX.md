@@ -79,3 +79,4 @@ npm run package:win
 | 2026-08-19 | [任务管理模块结构化与按钮闭环](features/2026-08-19_task-module-productization-plan.md) | Done |
 | 2026-08-19 | [数据管理、品牌图标与设置模块](features/2026-08-19_data-backup-brand-settings.md) | Done |
 | 2026-08-19 | [P0 个人工作台业务闭环](features/2026-08-19_p0-workbench-business-loop.md) | Done |
+| 2026-08-19 | [私有 GitHub 仓库发布](features/2026-08-19_private-github-repository.md) | Done |

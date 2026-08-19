@@ -275,6 +275,18 @@ createDesktopShortcut=true
 ✅ ProductVersion: 0.3.0.0
 ```
 
+### 2.11 阶段十一：私有 GitHub 仓库发布
+
+严格在 `deskforge` 目录初始化独立 Git 仓库。新增 `.gitignore` 排除依赖、构建产物、安装包、本地数据库、备份、环境变量和 Agent 工作文件；从官方 Release 恢复 GitHub CLI 到 `D:\gh`，创建并推送私有仓库。
+
+```text
+✅ SSH account: gqallen931
+✅ Repository: gqallen931/deskforge
+✅ Visibility: PRIVATE
+✅ Default branch: main
+✅ node_modules / dist / release / local DB 未上传
+```
+
 ---
 
 ## 3. 关键技术决策记录
