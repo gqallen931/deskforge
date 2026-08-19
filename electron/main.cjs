@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, Notification } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
 const { createStore } = require('./database.cjs');
@@ -6,11 +6,15 @@ const { createTaskRepository } = require('./task-repository.cjs');
 const { createTaskService } = require('./task-service.cjs');
 const { createDataManager } = require('./data-manager.cjs');
 const { createWorkbenchService } = require('./workbench-service.cjs');
+const { runMigrations } = require('./migrations.cjs');
+const { createReminderService } = require('./reminder-service.cjs');
 
 let store;
 let taskService;
 let dataManager;
 let workbenchService;
+let reminderService;
+let reminderTimer;
 app.setName('Deskforge');
 
 function createWindow() {
@@ -43,10 +47,13 @@ function createWindow() {
 app.whenReady().then(() => {
   const dataDir = app.getPath('userData');
   fs.mkdirSync(dataDir, { recursive: true });
-  store = createStore(path.join(dataDir, 'deskforge.db'));
+  const dbPath = path.join(dataDir, 'deskforge.db');
+  store = createStore(dbPath);
   taskService = createTaskService(createTaskRepository(store.database));
   workbenchService = createWorkbenchService(store.database);
+  runMigrations(store.database, { dbPath, snapshotDir: path.join(dataDir, 'migration-backups') });
   dataManager = createDataManager(store.database, path.join(dataDir, 'backups'));
+  reminderService = createReminderService(store.database);
   ipcMain.handle('db:load', () => store.load());
   ipcMain.handle('db:save', (_event, value) => store.save(value));
   ipcMain.handle('tasks:list', () => taskService.list());
@@ -68,15 +75,18 @@ app.whenReady().then(() => {
   ipcMain.handle('data:import', async () => {
     const result = await dialog.showOpenDialog({ title: '导入 Deskforge 数据', properties: ['openFile'], filters: [{ name: 'Deskforge JSON', extensions: ['json'] }] });
     if (result.canceled || !result.filePaths[0]) return { canceled: true };
-    const safetyBackup = dataManager.createBackup();
+    const safetyBackup = dataManager.createBackup('pre-import');
     const summary = dataManager.importData(dataManager.readBackup(result.filePaths[0]));
     return { canceled: false, safetyBackup, summary };
   });
-  ipcMain.handle('data:backup', () => ({ path: dataManager.createBackup() }));
+  ipcMain.handle('data:backup', () => dataManager.createBackup('manual'));
+  ipcMain.handle('data:backups:list', () => dataManager.listBackups());
+  ipcMain.handle('data:backups:restore', (_event, id) => dataManager.restoreBackup(id));
+  ipcMain.handle('data:backups:remove', (_event, id) => dataManager.removeBackup(id));
   ipcMain.handle('data:restore', async () => {
     const result = await dialog.showOpenDialog({ title: '恢复 Deskforge 备份', defaultPath: path.join(dataDir, 'backups'), properties: ['openFile'], filters: [{ name: 'Deskforge JSON', extensions: ['json'] }] });
     if (result.canceled || !result.filePaths[0]) return { canceled: true };
-    const safetyBackup = dataManager.createBackup();
+    const safetyBackup = dataManager.createBackup('pre-restore');
     const summary = dataManager.importData(dataManager.readBackup(result.filePaths[0]));
     return { canceled: false, safetyBackup, summary };
   });
@@ -86,6 +96,11 @@ app.whenReady().then(() => {
   ipcMain.handle('projects:list', () => workbenchService.listProjects());
   ipcMain.handle('projects:create', (_event, input) => workbenchService.createProject(input));
   ipcMain.handle('projects:archive', (_event, id) => workbenchService.archiveProject(id));
+  ipcMain.handle('projects:update', (_event, id, input) => workbenchService.updateProject(id, input));
+  ipcMain.handle('projects:remove', (_event, id) => workbenchService.deleteProject(id));
+  ipcMain.handle('projects:tasks', (_event, id) => workbenchService.projectTasks(id));
+  ipcMain.handle('projects:assign-task', (_event, id, code) => workbenchService.assignTask(id, code));
+  ipcMain.handle('projects:unassign-task', (_event, code) => workbenchService.unassignTask(code));
   ipcMain.handle('tags:list', (_event, taskCode) => workbenchService.listTags(taskCode));
   ipcMain.handle('tags:add', (_event, taskCode, input) => workbenchService.addTag(taskCode, input));
   ipcMain.handle('files:list', () => workbenchService.listFiles());
@@ -106,8 +121,17 @@ app.whenReady().then(() => {
   ipcMain.handle('notifications:list', () => workbenchService.notifications());
   ipcMain.handle('notifications:read-all', () => workbenchService.markNotificationsRead());
   ipcMain.handle('workbench:search', (_event, query) => workbenchService.search(query));
+  ipcMain.handle('reminders:list', () => reminderService.list());
+  ipcMain.handle('reminders:create', (_event, input) => reminderService.create(input));
+  ipcMain.handle('reminders:dismiss', (_event, id) => reminderService.dismiss(id));
+  ipcMain.handle('reminders:remove', (_event, id) => reminderService.remove(id));
   ipcMain.handle('app:quit', () => { app.quit(); return true; });
   createWindow();
+  const notifyDue = () => reminderService.claimDue().forEach((reminder) => {
+    if (Notification.isSupported()) new Notification({ title: reminder.title, body: reminder.taskCode ? `任务 ${reminder.taskCode}` : 'Deskforge 本地提醒' }).show();
+  });
+  reminderTimer = setInterval(notifyDue, 60000);
+  setTimeout(notifyDue, 2000);
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
@@ -118,5 +142,6 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
+  if (reminderTimer) clearInterval(reminderTimer);
   if (store) store.close();
 });

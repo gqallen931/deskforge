@@ -2,7 +2,7 @@
 
 > **文档类型**: 开发过程记录（Development Journal）
 > **执行日期**: 2026-08-19
-> **基于文档**: [project-architecture.md](./project-architecture.md) v0.3.0
+> **基于文档**: [project-architecture.md](./project-architecture.md) v0.4.0
 > **执行环境**: Windows 10.0.19045、Node.js 24.18.0、npm 11.16.0、PowerShell
 > **记录人**: Codex
 
@@ -287,6 +287,26 @@ createDesktopShortcut=true
 ✅ node_modules / dist / release / local DB 未上传
 ```
 
+### 2.12 阶段十二：P1 数据稳定性与 Windows 提醒
+
+实现 4 级顺序迁移和迁移前一致性快照；新增项目任务关系、项目进度、备份历史以及一次性/每日/每周本地提醒。Dashboard 设置、项目和日程入口全部接入新 IPC，并新增 Windows GitHub Actions 回归流程。
+
+#### 遇到的问题及解决方案
+
+1. 旧回归脚本未执行迁移，查询 `project_id` 失败：测试初始化顺序改为“基础表 → 迁移 → Service”。
+2. `createBackup` 从路径字符串升级为历史记录对象，旧测试仍按字符串读取：更新测试使用 `backup.path`，并验证历史表。
+3. 首次安装包构建连接镜像地址被沙箱拒绝：取得联网构建权限后沿用 `.npmrc` 镜像成功完成。
+4. 运行时验证直接执行时没有已启动的调试实例，出现 `fetch failed`：使用独立用户数据目录隐藏启动真实 EXE，再执行 CDP 验收并按精确 PID 关闭。
+
+```text
+✅ 全部数据库、任务、迁移、工作台、数据和提醒测试通过
+✅ Vite production build / file:// assets passed
+✅ Packaged runtime rendered: Deskforge · 个人工作台
+✅ Deskforge branding/settings/backup passed
+✅ Deskforge-Setup-0.4.0.exe: 92,681,242 bytes
+✅ SHA-256: 8A0586EDA1630BA2B66476F626AFA67E2A26464839C85E1FFCC345AD695329CD
+```
+
 ---
 
 ## 3. 关键技术决策记录
@@ -331,6 +351,9 @@ createDesktopShortcut=true
 | 0.2.0 品牌升级 | EXE 版本和 Logo 均为新版 | `DF / Deskforge only` | ✅ |
 | P0 Workbench Service | 工作区、项目、标签、文件、通知、搜索 | `Workbench service passed` | ✅ |
 | P0 真实按钮 | 侧栏、工作区和搜索入口 | `Workbench navigation/search buttons passed` | ✅ |
+| 数据库迁移 | 快照、顺序执行、幂等 | `Database migrations and pre-migration snapshot passed` | ✅ |
+| 本地提醒 | 一次性和周期提醒不重复领取 | `Local reminder lifecycle passed` | ✅ |
+| 0.4.0 真实 EXE | 页面、品牌、设置、备份 | 两项 CDP 验证通过 | ✅ |
 
 ---
 
@@ -391,5 +414,5 @@ docs/bugs/2026-08-19_packaged-app-black-screen.md
 | P0 | 配置 Windows 代码签名证书 | 对外分发前 |
 | P1 | 将项目、标签、设置继续迁移为标准化业务表 | 任务模型完成后 |
 | P1 | 完成素材授权审计 | 商业发布前 |
-| P1 | 增加备份历史列表、保留策略和数据库迁移版本 | 数据规模增长前 |
+| P1 | 增加备份自动保留策略和通知点击定位任务 | 数据规模增长前 |
 | P2 | 逐模块将 iframe 内页面迁移为 React 组件 | 保持视觉回归的前提下 |

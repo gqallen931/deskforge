@@ -27,6 +27,9 @@ contextBridge.exposeInMainWorld('deskforge', {
     importJson: () => ipcRenderer.invoke('data:import'),
     backup: () => ipcRenderer.invoke('data:backup'),
     restore: () => ipcRenderer.invoke('data:restore'),
+    listBackups: () => ipcRenderer.invoke('data:backups:list'),
+    restoreBackup: (id) => ipcRenderer.invoke('data:backups:restore', id),
+    removeBackup: (id) => ipcRenderer.invoke('data:backups:remove', id),
   },
   workbench: {
     dashboard: () => ipcRenderer.invoke('workbench:dashboard'),
@@ -40,6 +43,11 @@ contextBridge.exposeInMainWorld('deskforge', {
     list: () => ipcRenderer.invoke('projects:list'),
     create: (input) => ipcRenderer.invoke('projects:create', input),
     archive: (id) => ipcRenderer.invoke('projects:archive', id),
+    update: (id, input) => ipcRenderer.invoke('projects:update', id, input),
+    remove: (id) => ipcRenderer.invoke('projects:remove', id),
+    tasks: (id) => ipcRenderer.invoke('projects:tasks', id),
+    assignTask: (id, code) => ipcRenderer.invoke('projects:assign-task', id, code),
+    unassignTask: (code) => ipcRenderer.invoke('projects:unassign-task', code),
   },
   tags: {
     list: (taskCode) => ipcRenderer.invoke('tags:list', taskCode),
@@ -54,6 +62,12 @@ contextBridge.exposeInMainWorld('deskforge', {
   notifications: {
     list: () => ipcRenderer.invoke('notifications:list'),
     readAll: () => ipcRenderer.invoke('notifications:read-all'),
+  },
+  reminders: {
+    list: () => ipcRenderer.invoke('reminders:list'),
+    create: (input) => ipcRenderer.invoke('reminders:create', input),
+    dismiss: (id) => ipcRenderer.invoke('reminders:dismiss', id),
+    remove: (id) => ipcRenderer.invoke('reminders:remove', id),
   },
   app: { quit: () => ipcRenderer.invoke('app:quit') },
 });

@@ -1,6 +1,6 @@
 # Deskforge 工程架构文档
 
-> **版本**: 0.3.0
+> **版本**: 0.4.0
 > **状态**: 活跃开发中
 > **定位**: 本地优先、可安装到 Windows 的个人工作台桌面软件
 > **技术栈**: Electron + React + Vite + 原生 HTML/CSS/JavaScript + SQLite
@@ -30,6 +30,7 @@
 | 兼容层 | `app_state` 键值表 | v1 | 仅用于旧 Dashboard 快照首次迁移 |
 | 设置 | `settings` 键值表 | v1 | 白名单保存用户和显示偏好 |
 | 工作台模型 | `workspaces`、`projects`、`tags`、`task_tags`、`workspace_files`、`notifications` | v1 | P0 本地工作台业务数据 |
+| 稳定性模型 | `schema_migrations`、`backup_history`、`reminders`、`tasks.project_id` | v1 | 安全升级、备份索引、项目任务和本地提醒 |
 
 当前不启用 MySQL 或独立 Web 后端。需要账号、跨设备同步或多人协作时，再评估 Python + FastAPI + MySQL/PostgreSQL。
 
@@ -55,7 +56,9 @@ deskforge/
 │   ├── data-manager.cjs          # JSON、备份恢复、设置业务
 │   ├── data-manager-check.cjs    # 数据安全回归验证
 │   ├── workbench-service.cjs     # 工作区、项目、标签、文件、通知和搜索
-│   └── workbench-service-check.cjs # P0 业务回归验证
+│   ├── migrations.cjs            # 顺序迁移与迁移前 SQLite 快照
+│   ├── reminder-service.cjs      # 本地提醒生命周期
+│   └── *-check.cjs               # 数据、迁移、提醒和业务回归验证
 ├── src/
 │   ├── main.jsx                  # React 入口
 │   ├── App.jsx                   # Dashboard iframe 容器
@@ -148,10 +151,12 @@ deskforge/
 | `data:backup` / `data:restore` | Renderer → Main | 本地备份与安全恢复 |
 | `workbench:dashboard` / `workbench:search` | Renderer → Main | 聚合统计与跨模块搜索 |
 | `workspaces:create` / `workspaces:switch` | Renderer → Main | 工作区管理 |
-| `projects:*` | Renderer → Main | 项目列表、创建和归档 |
+| `projects:*` | Renderer → Main | 项目 CRUD、进度与任务关联 |
 | `tags:*` | Renderer → Main | 标签列表和任务关联 |
 | `files:*` | Renderer → Main | 文件选择、登记、打开和移除记录 |
 | `notifications:*` | Renderer → Main | 本地通知和已读状态 |
+| `reminders:*` | Renderer → Main | 本地提醒创建、查询、领取状态和删除 |
+| `data:backups:*` | Renderer → Main | 备份历史列表、恢复和删除 |
 
 没有 HTTP API、远程数据库和账号服务。
 
@@ -176,6 +181,8 @@ npm run verify:db
 npm run verify:tasks
 npm run verify:data
 npm run verify:workbench
+npm run verify:migrations
+npm run verify:reminders
 npm run build
 npm run verify:package-assets
 ```
@@ -190,7 +197,7 @@ $env:ELECTRON_BUILDER_BINARIES_MIRROR='https://npmmirror.com/mirrors/electron-bu
 npm run package:win
 ```
 
-输出：`release/Deskforge-Setup-0.3.0.exe`。
+输出：`release/Deskforge-Setup-0.4.0.exe`。
 
 ---
 
@@ -211,7 +218,7 @@ npm run package:win
 | `node:sqlite` 有 ExperimentalWarning | Electron 37 对该 API 仍标记实验性 | 发布前评估升级 Electron 或切换稳定 SQLite 驱动 |
 | Dashboard 通过 iframe 接入 | 优先保证原页面 1:1 动画和内容 | 分模块迁移到 React，期间保持视觉回归 |
 | 消息与多人协作尚未启用 | 当前为本地单机产品，无账号服务 | 云同步阶段增加服务端和身份系统 |
-| 备份恢复通过文件选择器操作 | 当前优先保证安全与可控 | 后续增加应用内备份历史列表和保留策略 |
+| 备份尚无自动保留策略 | 当前保留全部历史文件 | 后续增加按数量/时间清理策略 |
 | `package.json` 缺少 author | 商业元数据未完善 | 发布前补充公司/作者信息 |
 | 安装包未配置商业代码签名证书 | 当前仅内部测试 | 正式分发前购买并配置 Windows 代码签名 |
 | 生产构建必须保持相对资源路径 | Electron 使用 `file://` 加载 `dist/index.html` | `vite.config.js` 固定 `base: './'`，并执行资源回归检查 |
@@ -225,3 +232,4 @@ npm run package:win
 | 0.1.0 | 2026-08-19 | Electron + React 壳、原始 Dashboard、SQLite、本地 NSIS 安装包 | 建立可运行的 Windows 单机版本 |
 | 0.2.0 | 2026-08-19 | JSON 导入导出、备份恢复、设置、Deskforge 品牌和 Windows 图标 | 建立可迁移、可恢复的产品化单机版本 |
 | 0.3.0 | 2026-08-19 | 工作区、项目、标签、文件、通知、搜索、统计和备份 v2 | 完成本地个人工作台 P0 业务闭环 |
+| 0.4.0 | 2026-08-19 | 数据库迁移、项目任务、备份历史、Windows 提醒与 CI | 支持长期本地数据安全升级 |

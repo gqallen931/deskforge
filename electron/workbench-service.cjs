@@ -50,7 +50,11 @@ function createWorkbenchService(db) {
   }
 
   function listProjects() {
-    return db.prepare(`SELECT id, workspace_id AS workspaceId, name, description, status, deadline FROM projects WHERE archived = 0 AND workspace_id = ? ORDER BY id DESC`).all(activeWorkspace().id);
+    return db.prepare(`SELECT p.id, p.workspace_id AS workspaceId, p.name, p.description, p.status, p.deadline,
+      COUNT(t.code) AS taskCount, COALESCE(SUM(t.status='done'),0) AS doneCount
+      FROM projects p LEFT JOIN tasks t ON t.project_id=p.id AND t.archived=0
+      WHERE p.archived=0 AND p.workspace_id=? GROUP BY p.id ORDER BY p.id DESC`).all(activeWorkspace().id)
+      .map((project) => ({ ...project, taskCount: Number(project.taskCount), doneCount: Number(project.doneCount), progress: project.taskCount ? Math.round(project.doneCount * 100 / project.taskCount) : 0 }));
   }
 
   function listTags(taskCode) {
@@ -99,9 +103,35 @@ function createWorkbenchService(db) {
       return { id: Number(result.lastInsertRowid), workspaceId: activeWorkspace().id, name, description, status: 'active', deadline };
     },
     listProjects,
+    updateProject(id, input) {
+      const project = db.prepare('SELECT id FROM projects WHERE id=? AND archived=0').get(Number(id));
+      if (!project) throw new Error('项目不存在');
+      const name = required(input && input.name, '项目名称', 100);
+      const description = String(input.description || '').trim().slice(0, 1000);
+      const deadline = String(input.deadline || '').trim().slice(0, 40) || null;
+      db.prepare('UPDATE projects SET name=?,description=?,deadline=?,updated_at=CURRENT_TIMESTAMP WHERE id=?').run(name, description, deadline, project.id);
+      return listProjects().find((item) => item.id === project.id);
+    },
     archiveProject(id) {
       return Boolean(db.prepare('UPDATE projects SET archived=1,status=\'archived\',updated_at=CURRENT_TIMESTAMP WHERE id=?').run(Number(id)).changes);
     },
+    deleteProject(id) {
+      const projectId = Number(id);
+      db.exec('BEGIN IMMEDIATE');
+      try { db.prepare('UPDATE tasks SET project_id=NULL WHERE project_id=?').run(projectId); const changed = db.prepare('DELETE FROM projects WHERE id=?').run(projectId).changes; db.exec('COMMIT'); return Boolean(changed); }
+      catch (error) { db.exec('ROLLBACK'); throw error; }
+    },
+    projectTasks(id) {
+      return db.prepare(`SELECT code,name,status,priority,deadline,owner FROM tasks WHERE project_id=? AND archived=0 ORDER BY position,row_id`).all(Number(id));
+    },
+    assignTask(projectId, taskCode) {
+      if (!db.prepare('SELECT id FROM projects WHERE id=? AND archived=0').get(Number(projectId))) throw new Error('项目不存在');
+      const code = required(taskCode, '任务编号', 40);
+      if (!db.prepare('SELECT code FROM tasks WHERE code=? AND archived=0').get(code)) throw new Error('任务不存在');
+      db.prepare('UPDATE tasks SET project_id=?,updated_at=CURRENT_TIMESTAMP WHERE code=?').run(Number(projectId), code);
+      return true;
+    },
+    unassignTask(taskCode) { return Boolean(db.prepare('UPDATE tasks SET project_id=NULL,updated_at=CURRENT_TIMESTAMP WHERE code=?').run(required(taskCode, '任务编号', 40)).changes); },
     addTag(taskCode, input) {
       if (!db.prepare('SELECT code FROM tasks WHERE code=? AND archived=0').get(required(taskCode, '任务编号', 40))) throw new Error('任务不存在');
       const name = required(input && input.name, '标签名称', 20);

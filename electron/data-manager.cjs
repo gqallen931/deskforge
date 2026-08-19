@@ -2,7 +2,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const FORMAT = 'deskforge-backup';
-const VERSION = 2;
+const VERSION = 3;
 const DEFAULT_SETTINGS = {
   displayName: 'Brandon',
   role: '产品经理',
@@ -72,18 +72,19 @@ function createDataManager(db, backupDir) {
       exportedAt: new Date().toISOString(),
       settings: readSettings(),
       groups: db.prepare(`SELECT id, name, color, position, archived, created_at AS createdAt, updated_at AS updatedAt FROM task_groups ORDER BY id`).all(),
-      tasks: db.prepare(`SELECT row_id AS rowId, code, group_id AS groupId, name, description, priority, status, deadline, owner, participant, position, archived, created_at AS createdAt, updated_at AS updatedAt FROM tasks ORDER BY row_id`).all(),
+      tasks: db.prepare(`SELECT row_id AS rowId, code, group_id AS groupId, project_id AS projectId, name, description, priority, status, deadline, owner, participant, position, archived, created_at AS createdAt, updated_at AS updatedAt FROM tasks ORDER BY row_id`).all(),
       workspaces: db.prepare('SELECT id,name,active FROM workspaces ORDER BY id').all(),
       projects: db.prepare('SELECT id,workspace_id AS workspaceId,name,description,status,deadline,archived FROM projects ORDER BY id').all(),
       tags: db.prepare('SELECT id,name,color FROM tags ORDER BY id').all(),
       taskTags: db.prepare('SELECT task_code AS taskCode,tag_id AS tagId FROM task_tags ORDER BY task_code,tag_id').all(),
       files: db.prepare('SELECT id,workspace_id AS workspaceId,name,file_path AS path,size,extension FROM workspace_files ORDER BY id').all(),
       notifications: db.prepare('SELECT id,type,title,message,is_read AS isRead FROM notifications ORDER BY id').all(),
+      reminders: db.prepare('SELECT id,task_code AS taskCode,title,remind_at AS remindAt,repeat_rule AS repeatRule,status,notified_at AS notifiedAt FROM reminders ORDER BY id').all(),
     };
   }
 
   function validateImport(payload) {
-    if (!payload || payload.format !== FORMAT || ![1, VERSION].includes(payload.version)) throw new Error('不是受支持的 Deskforge 备份文件');
+    if (!payload || payload.format !== FORMAT || ![1, 2, VERSION].includes(payload.version)) throw new Error('不是受支持的 Deskforge 备份文件');
     if (!Array.isArray(payload.groups) || !Array.isArray(payload.tasks)) throw new Error('备份文件缺少任务数据');
     const groupIds = new Set();
     const codes = new Set();
@@ -103,25 +104,27 @@ function createDataManager(db, backupDir) {
   function importData(payload) {
     const clean = validateImport(payload);
     const insertGroup = db.prepare(`INSERT INTO task_groups(id, name, color, position, archived, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`);
-    const insertTask = db.prepare(`INSERT INTO tasks(row_id, code, group_id, name, description, priority, status, deadline, owner, participant, position, archived, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+    const insertTask = db.prepare(`INSERT INTO tasks(row_id, code, group_id, project_id, name, description, priority, status, deadline, owner, participant, position, archived, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
     const insertWorkspace = db.prepare('INSERT INTO workspaces(id,name,active) VALUES (?,?,?)');
     const insertProject = db.prepare('INSERT INTO projects(id,workspace_id,name,description,status,deadline,archived) VALUES (?,?,?,?,?,?,?)');
     const insertTag = db.prepare('INSERT INTO tags(id,name,color) VALUES (?,?,?)');
     const insertTaskTag = db.prepare('INSERT INTO task_tags(task_code,tag_id) VALUES (?,?)');
     const insertFile = db.prepare('INSERT INTO workspace_files(id,workspace_id,name,file_path,size,extension) VALUES (?,?,?,?,?,?)');
     const insertNotification = db.prepare('INSERT INTO notifications(id,type,title,message,is_read) VALUES (?,?,?,?,?)');
+    const insertReminder = db.prepare('INSERT INTO reminders(id,task_code,title,remind_at,repeat_rule,status,notified_at) VALUES (?,?,?,?,?,?,?)');
     db.exec('BEGIN IMMEDIATE');
     try {
-      db.exec('DELETE FROM task_tags; DELETE FROM projects; DELETE FROM workspace_files; DELETE FROM notifications; DELETE FROM tags; DELETE FROM workspaces; DELETE FROM tasks; DELETE FROM task_groups; DELETE FROM settings;');
+      db.exec('DELETE FROM task_tags; DELETE FROM reminders; DELETE FROM workspace_files; DELETE FROM notifications; DELETE FROM tags; DELETE FROM tasks; DELETE FROM projects; DELETE FROM workspaces; DELETE FROM task_groups; DELETE FROM settings;');
       clean.groups.forEach((g) => insertGroup.run(g.id, String(g.name).slice(0, 80), g.color || 'blue', Number(g.position) || 0, g.archived ? 1 : 0, g.createdAt || new Date().toISOString(), g.updatedAt || new Date().toISOString()));
-      clean.tasks.forEach((t) => insertTask.run(t.rowId || null, String(t.code).slice(0, 40), t.groupId, String(t.name).slice(0, 200), String(t.description || '').slice(0, 5000), ['高', '中', '低'].includes(t.priority) ? t.priority : '中', ['todo', 'doing', 'done', 'archived'].includes(t.status) ? t.status : 'todo', t.deadline || null, String(t.owner || 'brandon').slice(0, 40), t.participant ? 1 : 0, Number(t.position) || 0, t.archived ? 1 : 0, t.createdAt || new Date().toISOString(), t.updatedAt || new Date().toISOString()));
       const workspaces = Array.isArray(clean.workspaces) && clean.workspaces.length ? clean.workspaces : [{ id: 1, name: clean.settings && clean.settings.workspaceName || '个人工作台', active: 1 }];
       workspaces.forEach((w, index) => insertWorkspace.run(Number(w.id), requiredBackupText(w.name, '工作区名称', 60), w.active || index === 0 ? 1 : 0));
       (clean.projects || []).forEach((p) => insertProject.run(Number(p.id), Number(p.workspaceId), requiredBackupText(p.name, '项目名称', 100), String(p.description || '').slice(0, 1000), p.status || 'active', p.deadline || null, p.archived ? 1 : 0));
+      clean.tasks.forEach((t) => insertTask.run(t.rowId || null, String(t.code).slice(0, 40), t.groupId, t.projectId || null, String(t.name).slice(0, 200), String(t.description || '').slice(0, 5000), ['高', '中', '低'].includes(t.priority) ? t.priority : '中', ['todo', 'doing', 'done', 'archived'].includes(t.status) ? t.status : 'todo', t.deadline || null, String(t.owner || 'brandon').slice(0, 40), t.participant ? 1 : 0, Number(t.position) || 0, t.archived ? 1 : 0, t.createdAt || new Date().toISOString(), t.updatedAt || new Date().toISOString()));
       (clean.tags || []).forEach((tag) => insertTag.run(Number(tag.id), requiredBackupText(tag.name, '标签名称', 20), tag.color || 'green'));
       (clean.taskTags || []).forEach((link) => insertTaskTag.run(link.taskCode, Number(link.tagId)));
       (clean.files || []).forEach((f) => insertFile.run(Number(f.id), Number(f.workspaceId), requiredBackupText(f.name, '文件名', 255), requiredBackupText(f.path, '文件路径', 2000), Number(f.size || 0), String(f.extension || '').slice(0, 20)));
       (clean.notifications || []).forEach((n) => insertNotification.run(Number(n.id), n.type || 'info', requiredBackupText(n.title, '通知标题', 100), String(n.message || '').slice(0, 1000), n.isRead ? 1 : 0));
+      (clean.reminders || []).forEach((r) => insertReminder.run(Number(r.id), r.taskCode || null, requiredBackupText(r.title, '提醒标题', 120), new Date(r.remindAt).toISOString(), ['none','daily','weekly'].includes(r.repeatRule) ? r.repeatRule : 'none', r.status || 'pending', r.notifiedAt || null));
       writeSettings(validateSettings(clean.settings || DEFAULT_SETTINGS));
       db.exec('COMMIT');
     } catch (error) {
@@ -147,8 +150,31 @@ function createDataManager(db, backupDir) {
     return resolved;
   }
 
-  function createBackup() {
-    return writeBackup(path.join(backupDir, backupFilename()));
+  function createBackup(kind = 'manual') {
+    const filePath = writeBackup(path.join(backupDir, backupFilename()));
+    const stat = fs.statSync(filePath);
+    const result = db.prepare('INSERT INTO backup_history(file_path,filename,size,format_version,kind) VALUES (?,?,?,?,?)').run(filePath, path.basename(filePath), stat.size, VERSION, kind);
+    return { id: Number(result.lastInsertRowid), path: filePath, filename: path.basename(filePath), size: stat.size, version: VERSION, kind };
+  }
+
+  function listBackups() {
+    return db.prepare('SELECT id,file_path AS path,filename,size,format_version AS version,kind,created_at AS createdAt FROM backup_history ORDER BY id DESC').all().filter((item) => fs.existsSync(item.path));
+  }
+
+  function restoreBackup(id) {
+    const item = db.prepare('SELECT id,file_path AS path FROM backup_history WHERE id=?').get(Number(id));
+    if (!item || !fs.existsSync(item.path)) throw new Error('备份文件不存在');
+    const safetyBackup = createBackup('pre-restore');
+    return { safetyBackup, summary: importData(readBackup(item.path)) };
+  }
+
+  function removeBackup(id) {
+    const item = db.prepare('SELECT file_path AS path FROM backup_history WHERE id=?').get(Number(id));
+    if (!item) return false;
+    if (path.dirname(path.resolve(item.path)) !== path.resolve(backupDir)) throw new Error('拒绝删除备份目录之外的文件');
+    if (fs.existsSync(item.path)) fs.unlinkSync(item.path);
+    db.prepare('DELETE FROM backup_history WHERE id=?').run(Number(id));
+    return true;
   }
 
   function readBackup(sourcePath) {
@@ -157,7 +183,7 @@ function createDataManager(db, backupDir) {
     return validateImport(JSON.parse(raw));
   }
 
-  return { exportData, importData, readBackup, writeBackup, createBackup, readSettings, saveSettings };
+  return { exportData, importData, readBackup, writeBackup, createBackup, listBackups, restoreBackup, removeBackup, readSettings, saveSettings };
 }
 
 module.exports = { createDataManager, FORMAT, VERSION };

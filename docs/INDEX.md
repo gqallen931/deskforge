@@ -14,8 +14,9 @@
 | 任务管理业务闭环 | ✅ 已实现 | 结构化任务/分组表，新建、编辑、完成、归档和删除已接入真实数据 |
 | 数据与设置 | ✅ 已实现 | JSON 导入导出、自动/手动备份恢复、设置持久化 |
 | Deskforge 品牌 | ✅ 已实现 | 发布界面、窗口和 Windows 安装图标已统一 |
-| Windows 安装包 | ✅ 已生成 | NSIS 安装包 `release/Deskforge-Setup-0.3.0.exe` |
+| Windows 安装包 | ✅ 已生成 | NSIS 安装包 `release/Deskforge-Setup-0.4.0.exe` |
 | P0 工作台闭环 | ✅ 已实现 | 工作区、项目、标签、文件、通知、搜索和统计已接入 SQLite |
+| P1 稳定性 | ✅ 已实现 | 版本化迁移、迁移前快照、项目任务、备份历史与 Windows 提醒 |
 | 商业发布准备 | 🟡 进行中 | 缺少正式图标、作者信息、代码签名与完整业务回归 |
 
 ---
@@ -41,6 +42,8 @@ npm run verify:task-buttons
 npm run verify:data
 npm run verify:productization
 npm run verify:workbench
+npm run verify:migrations
+npm run verify:reminders
 npm run verify:workbench-buttons
 
 # 6. 生成 Windows 安装包
@@ -80,3 +83,4 @@ npm run package:win
 | 2026-08-19 | [数据管理、品牌图标与设置模块](features/2026-08-19_data-backup-brand-settings.md) | Done |
 | 2026-08-19 | [P0 个人工作台业务闭环](features/2026-08-19_p0-workbench-business-loop.md) | Done |
 | 2026-08-19 | [私有 GitHub 仓库发布](features/2026-08-19_private-github-repository.md) | Done |
+| 2026-08-19 | [P1 稳定性：迁移、项目任务、备份历史与提醒](features/2026-08-19_p1-stability-migrations-reminders.md) | Done |

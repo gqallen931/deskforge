@@ -824,7 +824,7 @@ body.deskforge-reduce-motion *, body.deskforge-reduce-motion *::before, body.des
     var settings = DESKFORGE && DESKFORGE.settings ? await DESKFORGE.settings.get() : { displayName: 'Brandon', role: '产品经理', workspaceName: '个人工作台', compactMode: false, reduceMotion: false };
     var overlay = Modal.open({
       title: 'Deskforge 设置', width: 560,
-      body: '<div class="wbi-settings-grid"><div class="wbi-field"><label class="wbi-field__label">显示名称</label><input class="wbi-input" id="wbiDisplayName" maxlength="40" value="' + esc(settings.displayName) + '"></div><div class="wbi-field"><label class="wbi-field__label">角色</label><input class="wbi-input" id="wbiRole" maxlength="40" value="' + esc(settings.role) + '"></div></div><div class="wbi-field"><label class="wbi-field__label">工作区名称</label><input class="wbi-input" id="wbiWorkspace" maxlength="60" value="' + esc(settings.workspaceName) + '"></div><label class="wbi-check"><input type="checkbox" id="wbiCompact"' + (settings.compactMode ? ' checked' : '') + '> 使用紧凑任务列表</label><label class="wbi-check"><input type="checkbox" id="wbiMotion"' + (settings.reduceMotion ? ' checked' : '') + '> 减少界面动态效果</label><div class="wbi-data-actions"><button class="wbi-btn wbi-btn--ghost" id="wbiExport">导出 JSON</button><button class="wbi-btn wbi-btn--ghost" id="wbiImport">导入 JSON</button><button class="wbi-btn wbi-btn--ghost" id="wbiBackup">立即备份</button><button class="wbi-btn wbi-btn--ghost" id="wbiRestore">恢复备份</button></div>',
+      body: '<div class="wbi-settings-grid"><div class="wbi-field"><label class="wbi-field__label">显示名称</label><input class="wbi-input" id="wbiDisplayName" maxlength="40" value="' + esc(settings.displayName) + '"></div><div class="wbi-field"><label class="wbi-field__label">角色</label><input class="wbi-input" id="wbiRole" maxlength="40" value="' + esc(settings.role) + '"></div></div><div class="wbi-field"><label class="wbi-field__label">工作区名称</label><input class="wbi-input" id="wbiWorkspace" maxlength="60" value="' + esc(settings.workspaceName) + '"></div><label class="wbi-check"><input type="checkbox" id="wbiCompact"' + (settings.compactMode ? ' checked' : '') + '> 使用紧凑任务列表</label><label class="wbi-check"><input type="checkbox" id="wbiMotion"' + (settings.reduceMotion ? ' checked' : '') + '> 减少界面动态效果</label><div class="wbi-data-actions"><button class="wbi-btn wbi-btn--ghost" id="wbiExport">导出 JSON</button><button class="wbi-btn wbi-btn--ghost" id="wbiImport">导入 JSON</button><button class="wbi-btn wbi-btn--ghost" id="wbiBackup">立即备份</button><button class="wbi-btn wbi-btn--ghost" id="wbiRestore">从文件恢复</button><button class="wbi-btn wbi-btn--ghost" id="wbiBackupHistory">备份历史</button></div>',
       buttons: [{ label: '取消', kind: 'ghost' }, { label: '保存设置', kind: 'primary', onClick: async function () {
         if (!DESKFORGE || !DESKFORGE.settings) return true;
         var saved = await DESKFORGE.settings.save({ displayName: $('#wbiDisplayName', overlay).value, role: $('#wbiRole', overlay).value, workspaceName: $('#wbiWorkspace', overlay).value, compactMode: $('#wbiCompact', overlay).checked, reduceMotion: $('#wbiMotion', overlay).checked });
@@ -835,6 +835,18 @@ body.deskforge-reduce-motion *, body.deskforge-reduce-motion *::before, body.des
     $('#wbiImport', overlay).addEventListener('click', importData);
     $('#wbiBackup', overlay).addEventListener('click', createBackup);
     $('#wbiRestore', overlay).addEventListener('click', restoreBackup);
+    $('#wbiBackupHistory', overlay).addEventListener('click', openBackupHistoryModal);
+  }
+
+  async function openBackupHistoryModal() {
+    var backups = await DESKFORGE.data.listBackups();
+    var overlay = Modal.open({ title: '备份历史', width: 650, body: recordListHtml(backups, '还没有本地备份', function (b) { return '<div class="wbi-note" data-backup-id="' + b.id + '"><span class="wbi-note__icon wbi-note__icon--blue">' + icon('archive') + '</span><div class="wbi-note__text"><strong style="color:#eceef1">' + esc(b.filename) + '</strong><div class="wbi-note__time">' + Math.max(1, Math.round(b.size / 1024)) + ' KB · ' + esc(b.kind) + ' · ' + esc(b.createdAt) + '</div></div><button class="wbi-btn wbi-btn--ghost wbi-backup-restore">恢复</button><button class="wbi-btn wbi-btn--danger wbi-backup-remove">删除</button></div>'; }), buttons: [{ label: '关闭', kind: 'ghost' }] });
+    overlay.addEventListener('click', async function (e) {
+      var row = e.target.closest('[data-backup-id]'); if (!row) return;
+      var id = Number(row.dataset.backupId);
+      if (e.target.closest('.wbi-backup-restore')) { await DESKFORGE.data.restoreBackup(id); Toast.success('备份已恢复，即将刷新'); setTimeout(function () { location.reload(); }, 500); }
+      if (e.target.closest('.wbi-backup-remove')) { await DESKFORGE.data.removeBackup(id); row.remove(); Toast.success('备份已删除'); }
+    });
   }
 
   function recordListHtml(items, emptyText, rowBuilder) {
@@ -845,13 +857,24 @@ body.deskforge-reduce-motion *, body.deskforge-reduce-motion *::before, body.des
     var projects = await DESKFORGE.projects.list();
     var overlay = Modal.open({
       title: '项目总览', width: 620,
-      body: '<div id="wbiProjectList">' + recordListHtml(projects, '还没有项目', function (p) { return '<div class="wbi-note" data-project-id="' + p.id + '"><span class="wbi-note__icon wbi-note__icon--green">' + icon('folder') + '</span><div class="wbi-note__text"><strong style="color:#eceef1">' + esc(p.name) + '</strong><div class="wbi-note__time">' + esc(p.description || '暂无描述') + (p.deadline ? ' · 截止 ' + esc(p.deadline) : '') + '</div></div><button class="wbi-btn wbi-btn--ghost wbi-project-archive">归档</button></div>'; }) + '</div>',
+      body: '<div id="wbiProjectList">' + recordListHtml(projects, '还没有项目', function (p) { return '<div class="wbi-note" data-project-id="' + p.id + '"><span class="wbi-note__icon wbi-note__icon--green">' + icon('folder') + '</span><div class="wbi-note__text"><strong style="color:#eceef1">' + esc(p.name) + '</strong><div class="wbi-note__time">' + p.doneCount + '/' + p.taskCount + ' 项 · ' + p.progress + '% · ' + esc(p.description || '暂无描述') + '</div></div><button class="wbi-btn wbi-btn--ghost wbi-project-tasks">任务</button><button class="wbi-btn wbi-btn--ghost wbi-project-archive">归档</button></div>'; }) + '</div>',
       buttons: [{ label: '关闭', kind: 'ghost' }, { label: '新建项目', kind: 'primary', icon: 'plus', onClick: function () { setTimeout(openNewProjectModal, 50); return true; } }],
     });
     overlay.addEventListener('click', async function (e) {
+      var taskBtn = e.target.closest('.wbi-project-tasks');
+      if (taskBtn) { openProjectTasksModal(Number(taskBtn.closest('[data-project-id]').dataset.projectId)); return; }
       var btn = e.target.closest('.wbi-project-archive'); if (!btn) return;
       var row = btn.closest('[data-project-id]'); await DESKFORGE.projects.archive(Number(row.dataset.projectId)); row.remove(); Toast.success('项目已归档');
     });
+  }
+
+  async function openProjectTasksModal(projectId) {
+    var assigned = await DESKFORGE.projects.tasks(projectId);
+    var all = Object.keys(TASK_DETAILS).map(function (code) { return { code: code, name: TASK_DETAILS[code].name }; });
+    var options = all.map(function (task) { return '<option value="' + esc(task.code) + '">' + esc(task.code + ' · ' + task.name) + '</option>'; }).join('');
+    var overlay = Modal.open({ title: '项目任务', width: 620, body: '<div class="wbi-field"><label class="wbi-field__label">添加任务</label><div style="display:flex;gap:8px"><select class="wbi-select" id="wbiProjectTaskSelect">' + options + '</select><button class="wbi-btn wbi-btn--primary" id="wbiProjectTaskAdd">添加</button></div></div><div id="wbiProjectTasks">' + recordListHtml(assigned, '该项目还没有任务', function (t) { return '<div class="wbi-note" data-task-code="' + esc(t.code) + '"><div class="wbi-note__text"><strong style="color:#eceef1">' + esc(t.name) + '</strong><div class="wbi-note__time">' + esc(t.code) + ' · ' + esc(t.status) + '</div></div><button class="wbi-btn wbi-btn--ghost wbi-project-task-remove">移出</button></div>'; }) + '</div>', buttons: [{ label: '关闭', kind: 'ghost' }] });
+    $('#wbiProjectTaskAdd', overlay).addEventListener('click', async function () { await DESKFORGE.projects.assignTask(projectId, $('#wbiProjectTaskSelect', overlay).value); Toast.success('任务已加入项目'); setTimeout(function () { openProjectTasksModal(projectId); }, 50); });
+    overlay.addEventListener('click', async function (e) { var btn = e.target.closest('.wbi-project-task-remove'); if (!btn) return; var row = btn.closest('[data-task-code]'); await DESKFORGE.projects.unassignTask(row.dataset.taskCode); row.remove(); Toast.success('任务已移出项目'); });
   }
 
   function openNewProjectModal() {
@@ -868,9 +891,15 @@ body.deskforge-reduce-motion *, body.deskforge-reduce-motion *::before, body.des
     });
   }
 
-  function openScheduleModal() {
+  async function openScheduleModal() {
     var tasks = Object.keys(TASK_DETAILS).map(function (id) { return { id: id, name: TASK_DETAILS[id].name, deadline: TASK_DETAILS[id].deadline }; }).filter(function (t) { return t.deadline; }).sort(function (a, b) { return a.deadline.localeCompare(b.deadline); });
-    Modal.open({ title: '日程管理', body: recordListHtml(tasks, '暂无设置截止日期的任务', function (t) { return '<div class="wbi-note"><span class="wbi-note__icon wbi-note__icon--blue">' + icon('calendar') + '</span><div class="wbi-note__text"><strong style="color:#eceef1">' + esc(t.name) + '</strong><div class="wbi-note__time">' + esc(t.id) + ' · ' + esc(t.deadline) + '</div></div></div>'; }), buttons: [{ label: '关闭', kind: 'ghost' }] });
+    var reminders = DESKFORGE.reminders ? await DESKFORGE.reminders.list() : [];
+    var overlay = Modal.open({ title: '日程与提醒', width: 650, body: '<div class="wbi-field"><label class="wbi-field__label">本地提醒</label>' + recordListHtml(reminders, '暂无提醒', function (r) { return '<div class="wbi-note" data-reminder-id="' + r.id + '"><span class="wbi-note__icon wbi-note__icon--green">' + icon('bell') + '</span><div class="wbi-note__text"><strong style="color:#eceef1">' + esc(r.title) + '</strong><div class="wbi-note__time">' + esc(new Date(r.remindAt).toLocaleString()) + ' · ' + esc(r.repeatRule) + ' · ' + esc(r.status) + '</div></div><button class="wbi-btn wbi-btn--danger wbi-reminder-remove">删除</button></div>'; }) + '</div><div class="wbi-field"><label class="wbi-field__label">任务截止日期</label>' + recordListHtml(tasks, '暂无设置截止日期的任务', function (t) { return '<div class="wbi-note"><div class="wbi-note__text"><strong style="color:#eceef1">' + esc(t.name) + '</strong><div class="wbi-note__time">' + esc(t.id) + ' · ' + esc(t.deadline) + '</div></div></div>'; }) + '</div>', buttons: [{ label: '关闭', kind: 'ghost' }, { label: '新建提醒', kind: 'primary', onClick: function () { setTimeout(openNewReminderModal, 50); return true; } }] });
+    overlay.addEventListener('click', async function (e) { var btn = e.target.closest('.wbi-reminder-remove'); if (!btn) return; var row = btn.closest('[data-reminder-id]'); await DESKFORGE.reminders.remove(Number(row.dataset.reminderId)); row.remove(); Toast.success('提醒已删除'); });
+  }
+
+  function openNewReminderModal() {
+    var overlay = Modal.open({ title: '新建本地提醒', small: true, body: '<div class="wbi-field"><label class="wbi-field__label">标题</label><input class="wbi-input" id="wbiReminderTitle" maxlength="120"></div><div class="wbi-field"><label class="wbi-field__label">提醒时间</label><input class="wbi-input" id="wbiReminderAt" type="datetime-local"></div><div class="wbi-field"><label class="wbi-field__label">重复</label><select class="wbi-select" id="wbiReminderRepeat"><option value="none">不重复</option><option value="daily">每天</option><option value="weekly">每周</option></select></div>', buttons: [{ label: '取消', kind: 'ghost' }, { label: '创建', kind: 'primary', onClick: async function () { await DESKFORGE.reminders.create({ title: $('#wbiReminderTitle', overlay).value, remindAt: $('#wbiReminderAt', overlay).value, repeatRule: $('#wbiReminderRepeat', overlay).value }); Toast.success('本地提醒已创建'); return true; } }] });
   }
 
   async function openAnalysisModal() {
