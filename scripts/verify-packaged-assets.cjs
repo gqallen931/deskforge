@@ -18,5 +18,8 @@ for (const asset of assets) {
 
 if (!dashboardHtml.includes('task-dashboard.js')) throw new Error('dashboard script reference missing');
 if (!fs.existsSync(path.join(distDir, 'task-dashboard.js'))) throw new Error('dashboard script missing');
+for (const legalFile of ['privacy.html', 'terms.html']) {
+  if (!fs.existsSync(path.join(distDir, 'legal', legalFile))) throw new Error(`legal document missing: ${legalFile}`);
+}
 
 console.log('Packaged file:// assets passed');

@@ -28,10 +28,14 @@ try {
   const backup = data.createBackup();
   assert.equal(fs.existsSync(backup.path), true);
   assert.equal(data.listBackups().length, 1);
-
   tasks.updateTask('DF-TEST-001', { name: '已修改任务' });
   data.importData(data.readBackup(backup.path));
   assert.equal(tasks.list()[0].tasks[0].name, '原始任务');
+  data.saveSettings({ ...data.readSettings(), displayName: '测试用户', workspaceName: '测试工作台', backupRetentionCount: 2, backupRetentionDays: 90 });
+  data.createBackup(); data.createBackup();
+  assert.equal(data.listBackups().length, 2);
+  assert.equal(data.pruneBackups().remaining, 2);
+
   assert.equal(data.readSettings().workspaceName, '测试工作台');
   assert.equal(workbench.listProjects()[0].name, '备份项目');
   assert.throws(() => data.importData({ format: 'unknown', version: 1 }), /受支持/);

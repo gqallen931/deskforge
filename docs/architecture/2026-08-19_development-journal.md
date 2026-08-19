@@ -2,7 +2,7 @@
 
 > **文档类型**: 开发过程记录（Development Journal）
 > **执行日期**: 2026-08-19
-> **基于文档**: [project-architecture.md](./project-architecture.md) v0.5.0
+> **基于文档**: [project-architecture.md](./project-architecture.md) v0.6.0
 > **执行环境**: Windows 10.0.19045、Node.js 24.18.0、npm 11.16.0、PowerShell
 > **记录人**: Codex
 
@@ -324,6 +324,28 @@ createDesktopShortcut=true
 ✅ SHA-256: E5ADD23899658AD74034BC76ECE3715DA85E412BD8CFF13AD44FDC6C69C4F0E3
 ```
 
+### 2.14 阶段十四：商业发布生命周期与渐进 React 迁移
+
+实现备份数量/天数保留策略、真实 NSIS 安装升级卸载测试、HTTPS 自动更新状态机、法律文档入口、签名发布工作流和 React 模块边界。登录模块已从 `App.jsx` 拆分为独立 React Feature，旧 Dashboard 继续保持视觉基准。
+
+#### 问题与解决
+
+1. 生命周期测试强制结束旧应用导致升级数据断言失败：改为应用 IPC 正常退出。
+2. Windows Known Folder 不接受测试覆盖的 `APPDATA`：改用 Electron `--user-data-dir` 保证完全隔离。
+3. 0.5.0 起业务 IPC 需要鉴权：升级测试在旧版和新版分别登录，验证会话不跨进程、账户和数据可保留。
+4. PowerShell Security 模块在受限环境无法加载：签名检查改用项目内 `signtool.exe`。
+5. 本机无证书，Authenticode 验证得到 0 个有效签名：保留为商业发布硬阻塞，CI 未签名即失败。
+
+```text
+✅ Backup retention count/day policy passed
+✅ Automatic update state machine and HTTPS configuration guard passed
+✅ Install, 0.5.0 to 0.6.0 upgrade, uninstall and user-data retention passed
+✅ IPC contract: 55 channels registered
+⚠️ Windows signature: waiting for trusted certificate
+✅ Deskforge-Setup-0.6.0.exe: 93,028,873 bytes
+✅ SHA-256: 894CB71EA457347CF25B5AE106ED42E93C435EDA489DB037D6290F9A58113CA1
+```
+
 ---
 
 ## 3. 关键技术决策记录
@@ -372,7 +394,10 @@ createDesktopShortcut=true
 | 本地提醒 | 一次性和周期提醒不重复领取 | `Local reminder lifecycle passed` | ✅ |
 | 0.4.0 真实 EXE | 页面、品牌、设置、备份 | 两项 CDP 验证通过 | ✅ |
 | 本地鉴权 | 哈希、登录、退出、改密、限流 | `Local authentication... passed` | ✅ |
-| IPC 契约 | Preload 通道均有 Main 实现 | 49/49 | ✅ |
+| IPC 契约 | Preload 通道均有 Main 实现 | 55/55 | ✅ |
+| 安装生命周期 | 安装、升级、卸载、数据保留 | 0.5.0 → 0.6.0 | ✅ |
+| 自动更新 | 状态机、HTTPS 守卫 | 单元验证通过，发布源待配置 | 🟡 |
+| 代码签名 | Authenticode | 无本机证书 | 🔴 |
 
 ---
 

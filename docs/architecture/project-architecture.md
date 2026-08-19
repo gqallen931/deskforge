@@ -1,6 +1,6 @@
 # Deskforge 工程架构文档
 
-> **版本**: 0.5.0
+> **版本**: 0.6.0
 > **状态**: 活跃开发中
 > **定位**: 本地优先、可安装到 Windows 的个人工作台桌面软件
 > **技术栈**: Electron + React + Vite + 原生 HTML/CSS/JavaScript + SQLite
@@ -19,6 +19,7 @@
 | 构建工具 | Vite | 7.3.6 | 开发服务器与生产构建 |
 | 展示层 | 原生 HTML/CSS/JavaScript | — | 保持 `A-UI/展示` 的视觉、动画与交互一致 |
 | 打包工具 | electron-builder | 26.15.3 | 生成 NSIS Windows 安装包 |
+| 自动更新 | electron-updater | 6.8.9 | HTTPS 通道检查、下载和 NSIS 安装 |
 
 ### 1.2 本地数据层
 
@@ -60,10 +61,13 @@ deskforge/
 │   ├── migrations.cjs            # 顺序迁移与迁移前 SQLite 快照
 │   ├── reminder-service.cjs      # 本地提醒生命周期
 │   ├── auth-service.cjs          # 本地账户、密码和窗口会话
+│   ├── update-service.cjs        # HTTPS 自动更新状态机
 │   └── *-check.cjs               # 数据、迁移、提醒和业务回归验证
 ├── src/
 │   ├── main.jsx                  # React 入口
 │   ├── App.jsx                   # Dashboard iframe 容器
+│   ├── features/auth/            # 已迁移的 React 本地鉴权模块
+│   ├── features/dashboard/       # Legacy Dashboard 隔离边界
 │   └── styles.css                # 全屏容器样式
 ├── public/
 │   ├── dashboard.html            # 原始 Dashboard 视觉基准
@@ -161,6 +165,8 @@ deskforge/
 | `reminders:*` | Renderer → Main | 本地提醒创建、查询、领取状态和删除 |
 | `data:backups:*` | Renderer → Main | 备份历史列表、恢复和删除 |
 | `auth:*` | Renderer → Main | 初始化账户、登录、退出、修改密码与会话状态 |
+| `updates:*` | Renderer → Main | 更新状态、检查、下载和安装 |
+| `legal:open` | Renderer → Main | 打开内置隐私政策与用户协议 |
 
 没有 HTTP API、远程数据库和账号服务。
 
@@ -189,6 +195,8 @@ npm run verify:migrations
 npm run verify:reminders
 npm run verify:auth
 npm run verify:ipc
+npm run verify:updates
+npm run verify:install-lifecycle
 npm run build
 npm run verify:package-assets
 ```
@@ -203,7 +211,7 @@ $env:ELECTRON_BUILDER_BINARIES_MIRROR='https://npmmirror.com/mirrors/electron-bu
 npm run package:win
 ```
 
-输出：`release/Deskforge-Setup-0.4.0.exe`。
+输出：`release/Deskforge-Setup-0.6.0.exe`。
 
 ---
 
@@ -240,3 +248,4 @@ npm run package:win
 | 0.3.0 | 2026-08-19 | 工作区、项目、标签、文件、通知、搜索、统计和备份 v2 | 完成本地个人工作台 P0 业务闭环 |
 | 0.4.0 | 2026-08-19 | 数据库迁移、项目任务、备份历史、Windows 提醒与 CI | 支持长期本地数据安全升级 |
 | 0.5.0 | 2026-08-19 | 本地账户鉴权、全 IPC 会话守卫与契约检查 | 建立设备级安全边界；AI 与消息保留为开发中 |
+| 0.6.0 | 2026-08-19 | 安装生命周期、备份保留、更新机制、法律入口和 React 模块边界 | 推进商业发布准备与渐进迁移 |

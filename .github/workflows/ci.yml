@@ -23,4 +23,5 @@ jobs:
       - run: npm run verify:reminders
       - run: npm run verify:auth
       - run: npm run verify:ipc
+      - run: npm run verify:updates
       - run: npm run build

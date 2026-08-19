@@ -822,12 +822,13 @@ body.deskforge-reduce-motion *, body.deskforge-reduce-motion *::before, body.des
 
   async function openSettingsModal() {
     var settings = DESKFORGE && DESKFORGE.settings ? await DESKFORGE.settings.get() : { displayName: 'Brandon', role: '产品经理', workspaceName: '个人工作台', compactMode: false, reduceMotion: false };
+    var updateState = DESKFORGE && DESKFORGE.updates ? await DESKFORGE.updates.status() : { status: 'disabled', message: '自动更新仅在桌面版可用' };
     var overlay = Modal.open({
       title: 'Deskforge 设置', width: 560,
-      body: '<div class="wbi-settings-grid"><div class="wbi-field"><label class="wbi-field__label">显示名称</label><input class="wbi-input" id="wbiDisplayName" maxlength="40" value="' + esc(settings.displayName) + '"></div><div class="wbi-field"><label class="wbi-field__label">角色</label><input class="wbi-input" id="wbiRole" maxlength="40" value="' + esc(settings.role) + '"></div></div><div class="wbi-field"><label class="wbi-field__label">工作区名称</label><input class="wbi-input" id="wbiWorkspace" maxlength="60" value="' + esc(settings.workspaceName) + '"></div><label class="wbi-check"><input type="checkbox" id="wbiCompact"' + (settings.compactMode ? ' checked' : '') + '> 使用紧凑任务列表</label><label class="wbi-check"><input type="checkbox" id="wbiMotion"' + (settings.reduceMotion ? ' checked' : '') + '> 减少界面动态效果</label><div class="wbi-data-actions"><button class="wbi-btn wbi-btn--ghost" id="wbiExport">导出 JSON</button><button class="wbi-btn wbi-btn--ghost" id="wbiImport">导入 JSON</button><button class="wbi-btn wbi-btn--ghost" id="wbiBackup">立即备份</button><button class="wbi-btn wbi-btn--ghost" id="wbiRestore">从文件恢复</button><button class="wbi-btn wbi-btn--ghost" id="wbiBackupHistory">备份历史</button><button class="wbi-btn wbi-btn--ghost" id="wbiChangePassword">修改密码</button></div>',
+      body: '<div class="wbi-settings-grid"><div class="wbi-field"><label class="wbi-field__label">显示名称</label><input class="wbi-input" id="wbiDisplayName" maxlength="40" value="' + esc(settings.displayName) + '"></div><div class="wbi-field"><label class="wbi-field__label">角色</label><input class="wbi-input" id="wbiRole" maxlength="40" value="' + esc(settings.role) + '"></div></div><div class="wbi-field"><label class="wbi-field__label">工作区名称</label><input class="wbi-input" id="wbiWorkspace" maxlength="60" value="' + esc(settings.workspaceName) + '"></div><div class="wbi-settings-grid"><div class="wbi-field"><label class="wbi-field__label">最多保留备份数</label><input class="wbi-input" id="wbiBackupCount" type="number" min="1" max="100" value="' + settings.backupRetentionCount + '"></div><div class="wbi-field"><label class="wbi-field__label">最长保留天数</label><input class="wbi-input" id="wbiBackupDays" type="number" min="1" max="3650" value="' + settings.backupRetentionDays + '"></div></div><label class="wbi-check"><input type="checkbox" id="wbiCompact"' + (settings.compactMode ? ' checked' : '') + '> 使用紧凑任务列表</label><label class="wbi-check"><input type="checkbox" id="wbiMotion"' + (settings.reduceMotion ? ' checked' : '') + '> 减少界面动态效果</label><div class="wbi-empty-hint" id="wbiUpdateStatus">更新：' + esc(updateState.message) + '</div><div class="wbi-data-actions"><button class="wbi-btn wbi-btn--ghost" id="wbiUpdate">检查更新</button><button class="wbi-btn wbi-btn--ghost" id="wbiExport">导出 JSON</button><button class="wbi-btn wbi-btn--ghost" id="wbiImport">导入 JSON</button><button class="wbi-btn wbi-btn--ghost" id="wbiBackup">立即备份</button><button class="wbi-btn wbi-btn--ghost" id="wbiRestore">从文件恢复</button><button class="wbi-btn wbi-btn--ghost" id="wbiBackupHistory">备份历史</button><button class="wbi-btn wbi-btn--ghost" id="wbiPruneBackups">清理旧备份</button><button class="wbi-btn wbi-btn--ghost" id="wbiChangePassword">修改密码</button><button class="wbi-btn wbi-btn--ghost" id="wbiPrivacy">隐私政策</button><button class="wbi-btn wbi-btn--ghost" id="wbiTerms">用户协议</button></div>',
       buttons: [{ label: '取消', kind: 'ghost' }, { label: '保存设置', kind: 'primary', onClick: async function () {
         if (!DESKFORGE || !DESKFORGE.settings) return true;
-        var saved = await DESKFORGE.settings.save({ displayName: $('#wbiDisplayName', overlay).value, role: $('#wbiRole', overlay).value, workspaceName: $('#wbiWorkspace', overlay).value, compactMode: $('#wbiCompact', overlay).checked, reduceMotion: $('#wbiMotion', overlay).checked });
+        var saved = await DESKFORGE.settings.save({ displayName: $('#wbiDisplayName', overlay).value, role: $('#wbiRole', overlay).value, workspaceName: $('#wbiWorkspace', overlay).value, compactMode: $('#wbiCompact', overlay).checked, reduceMotion: $('#wbiMotion', overlay).checked, backupRetentionCount: Number($('#wbiBackupCount', overlay).value), backupRetentionDays: Number($('#wbiBackupDays', overlay).value) });
         applySettings(saved); Toast.success('设置已保存'); return true;
       } }],
     });
@@ -836,7 +837,17 @@ body.deskforge-reduce-motion *, body.deskforge-reduce-motion *::before, body.des
     $('#wbiBackup', overlay).addEventListener('click', createBackup);
     $('#wbiRestore', overlay).addEventListener('click', restoreBackup);
     $('#wbiBackupHistory', overlay).addEventListener('click', openBackupHistoryModal);
+    $('#wbiUpdate', overlay).addEventListener('click', async function () {
+      if (updateState.status === 'disabled' || updateState.status === 'development') return Toast.info(updateState.message);
+      if (updateState.status === 'available') updateState = await DESKFORGE.updates.download();
+      else if (updateState.status === 'downloaded') return DESKFORGE.updates.install();
+      else updateState = await DESKFORGE.updates.check();
+      $('#wbiUpdateStatus', overlay).textContent = '更新：' + updateState.message;
+    });
+    $('#wbiPruneBackups', overlay).addEventListener('click', async function () { var result = await DESKFORGE.data.pruneBackups(); Toast.success('已清理 ' + result.removed + ' 个旧备份，保留 ' + result.remaining + ' 个'); });
     $('#wbiChangePassword', overlay).addEventListener('click', openChangePasswordModal);
+    $('#wbiPrivacy', overlay).addEventListener('click', function () { return DESKFORGE.legal.open('privacy'); });
+    $('#wbiTerms', overlay).addEventListener('click', function () { return DESKFORGE.legal.open('terms'); });
   }
 
   function openChangePasswordModal() {

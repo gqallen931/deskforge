@@ -9,6 +9,8 @@ const DEFAULT_SETTINGS = {
   workspaceName: '个人工作台',
   compactMode: false,
   reduceMotion: false,
+  backupRetentionCount: 20,
+  backupRetentionDays: 90,
 };
 
 function createDataManager(db, backupDir) {
@@ -38,6 +40,8 @@ function createDataManager(db, backupDir) {
       workspaceName: String(source.workspaceName ?? DEFAULT_SETTINGS.workspaceName).trim().slice(0, 60),
       compactMode: Boolean(source.compactMode),
       reduceMotion: Boolean(source.reduceMotion),
+      backupRetentionCount: Math.min(100, Math.max(1, Number(source.backupRetentionCount) || DEFAULT_SETTINGS.backupRetentionCount)),
+      backupRetentionDays: Math.min(3650, Math.max(1, Number(source.backupRetentionDays) || DEFAULT_SETTINGS.backupRetentionDays)),
     };
     if (!clean.displayName || !clean.workspaceName) throw new Error('姓名和工作区名称不能为空');
     return clean;
@@ -58,6 +62,7 @@ function createDataManager(db, backupDir) {
     try {
       writeSettings(clean);
       db.exec('COMMIT');
+      pruneBackups(clean);
       return clean;
     } catch (error) {
       db.exec('ROLLBACK');
@@ -141,7 +146,7 @@ function createDataManager(db, backupDir) {
   }
 
   function backupFilename() {
-    return `deskforge-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}.json`;
+    return `deskforge-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
   }
 
   function writeBackup(targetPath) {
@@ -154,7 +159,9 @@ function createDataManager(db, backupDir) {
     const filePath = writeBackup(path.join(backupDir, backupFilename()));
     const stat = fs.statSync(filePath);
     const result = db.prepare('INSERT INTO backup_history(file_path,filename,size,format_version,kind) VALUES (?,?,?,?,?)').run(filePath, path.basename(filePath), stat.size, VERSION, kind);
-    return { id: Number(result.lastInsertRowid), path: filePath, filename: path.basename(filePath), size: stat.size, version: VERSION, kind };
+    const record = { id: Number(result.lastInsertRowid), path: filePath, filename: path.basename(filePath), size: stat.size, version: VERSION, kind };
+    pruneBackups();
+    return record;
   }
 
   function listBackups() {
@@ -177,13 +184,31 @@ function createDataManager(db, backupDir) {
     return true;
   }
 
+  function pruneBackups(policy = readSettings()) {
+    const maxCount = Math.min(100, Math.max(1, Number(policy.backupRetentionCount) || DEFAULT_SETTINGS.backupRetentionCount));
+    const maxDays = Math.min(3650, Math.max(1, Number(policy.backupRetentionDays) || DEFAULT_SETTINGS.backupRetentionDays));
+    const cutoff = Date.now() - maxDays * 86400000;
+    const records = db.prepare('SELECT id,file_path AS path,created_at AS createdAt FROM backup_history ORDER BY datetime(created_at) DESC,id DESC').all();
+    let removed = 0;
+    records.forEach((item, index) => {
+      const tooMany = index >= maxCount;
+      const tooOld = new Date(`${item.createdAt.replace(' ', 'T')}Z`).getTime() < cutoff;
+      if (!tooMany && !tooOld) return;
+      if (path.dirname(path.resolve(item.path)) !== path.resolve(backupDir)) return;
+      if (fs.existsSync(item.path)) fs.unlinkSync(item.path);
+      db.prepare('DELETE FROM backup_history WHERE id=?').run(item.id);
+      removed += 1;
+    });
+    return { removed, remaining: listBackups().length, maxCount, maxDays };
+  }
+
   function readBackup(sourcePath) {
     const raw = fs.readFileSync(path.resolve(sourcePath), 'utf8');
     if (Buffer.byteLength(raw, 'utf8') > 10 * 1024 * 1024) throw new Error('备份文件不能超过 10 MB');
     return validateImport(JSON.parse(raw));
   }
 
-  return { exportData, importData, readBackup, writeBackup, createBackup, listBackups, restoreBackup, removeBackup, readSettings, saveSettings };
+  return { exportData, importData, readBackup, writeBackup, createBackup, listBackups, restoreBackup, removeBackup, pruneBackups, readSettings, saveSettings };
 }
 
 module.exports = { createDataManager, FORMAT, VERSION };

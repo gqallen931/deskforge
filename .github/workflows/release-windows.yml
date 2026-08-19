@@ -1,0 +1,30 @@
+name: Signed Windows Release
+
+on:
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run verify:auth
+      - run: npm run verify:ipc
+      - run: npm run verify:updates
+      - run: npm run package:win
+        env:
+          CSC_LINK: ${{ secrets.WINDOWS_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CSC_KEY_PASSWORD }}
+      - run: npm run verify:signature
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deskforge-windows-signed
+          path: |
+            release/Deskforge-Setup-*.exe
+            release/Deskforge-Setup-*.exe.blockmap
+            release/latest.yml

@@ -37,6 +37,7 @@ contextBridge.exposeInMainWorld('deskforge', {
     listBackups: () => ipcRenderer.invoke('data:backups:list'),
     restoreBackup: (id) => ipcRenderer.invoke('data:backups:restore', id),
     removeBackup: (id) => ipcRenderer.invoke('data:backups:remove', id),
+    pruneBackups: () => ipcRenderer.invoke('data:backups:prune'),
   },
   workbench: {
     dashboard: () => ipcRenderer.invoke('workbench:dashboard'),
@@ -76,5 +77,13 @@ contextBridge.exposeInMainWorld('deskforge', {
     dismiss: (id) => ipcRenderer.invoke('reminders:dismiss', id),
     remove: (id) => ipcRenderer.invoke('reminders:remove', id),
   },
+  updates: {
+    status: () => ipcRenderer.invoke('updates:status'),
+    check: () => ipcRenderer.invoke('updates:check'),
+    download: () => ipcRenderer.invoke('updates:download'),
+    install: () => ipcRenderer.invoke('updates:install'),
+    onState: (callback) => { const listener = (_event, state) => callback(state); ipcRenderer.on('updates:state', listener); return () => ipcRenderer.removeListener('updates:state', listener); },
+  },
+  legal: { open: (type) => ipcRenderer.invoke('legal:open', type) },
   app: { quit: () => ipcRenderer.invoke('app:quit') },
 });

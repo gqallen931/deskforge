@@ -9,6 +9,7 @@ const { createWorkbenchService } = require('./workbench-service.cjs');
 const { runMigrations } = require('./migrations.cjs');
 const { createReminderService } = require('./reminder-service.cjs');
 const { createAuthService } = require('./auth-service.cjs');
+const { createUpdateService } = require('./update-service.cjs');
 
 let store;
 let taskService;
@@ -16,6 +17,7 @@ let dataManager;
 let workbenchService;
 let reminderService;
 let authService;
+let updateService;
 let reminderTimer;
 app.setName('Deskforge');
 
@@ -58,6 +60,9 @@ app.whenReady().then(() => {
   authService = createAuthService(store.database);
   dataManager = createDataManager(store.database, path.join(dataDir, 'backups'));
   reminderService = createReminderService(store.database);
+  let updateConfig = { enabled: false, url: '' };
+  if (app.isPackaged) { try { updateConfig = JSON.parse(fs.readFileSync(path.join(process.resourcesPath, 'update-config.json'), 'utf8')); } catch {} }
+  updateService = createUpdateService({ app, config: updateConfig, emit: (state) => BrowserWindow.getAllWindows().forEach((win) => win.webContents.send('updates:state', state)) });
   ipcMain.handle('auth:status', (event) => authService.status(event.sender.id));
   ipcMain.handle('auth:register', (event, input) => authService.register(event.sender.id, input));
   ipcMain.handle('auth:login', (event, input) => authService.login(event.sender.id, input));
@@ -93,6 +98,7 @@ app.whenReady().then(() => {
   secureHandle('data:backups:list', () => dataManager.listBackups());
   secureHandle('data:backups:restore', (_event, id) => dataManager.restoreBackup(id));
   secureHandle('data:backups:remove', (_event, id) => dataManager.removeBackup(id));
+  secureHandle('data:backups:prune', () => dataManager.pruneBackups());
   secureHandle('data:restore', async () => {
     const result = await dialog.showOpenDialog({ title: '恢复 Deskforge 备份', defaultPath: path.join(dataDir, 'backups'), properties: ['openFile'], filters: [{ name: 'Deskforge JSON', extensions: ['json'] }] });
     if (result.canceled || !result.filePaths[0]) return { canceled: true };
@@ -135,6 +141,16 @@ app.whenReady().then(() => {
   secureHandle('reminders:create', (_event, input) => reminderService.create(input));
   secureHandle('reminders:dismiss', (_event, id) => reminderService.dismiss(id));
   secureHandle('reminders:remove', (_event, id) => reminderService.remove(id));
+  secureHandle('updates:status', () => updateService.status());
+  secureHandle('updates:check', () => updateService.check());
+  secureHandle('updates:download', () => updateService.download());
+  secureHandle('updates:install', () => updateService.install());
+  secureHandle('legal:open', (_event, type) => {
+    const files = { privacy: 'privacy.html', terms: 'terms.html' };
+    if (!files[type]) throw new Error('未知法律文档');
+    const legalWindow = new BrowserWindow({ width: 860, height: 760, minWidth: 640, minHeight: 500, parent: BrowserWindow.getFocusedWindow() || undefined, backgroundColor: '#0d0f12', webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true } });
+    return legalWindow.loadFile(path.join(__dirname, '..', app.isPackaged ? 'dist' : 'public', 'legal', files[type])).then(() => true);
+  });
   secureHandle('app:quit', () => { app.quit(); return true; });
   createWindow();
   const notifyDue = () => reminderService.claimDue().forEach((reminder) => {
