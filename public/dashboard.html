@@ -1,0 +1,1851 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Deskforge · 个人工作台</title>
+  <style>
+    /* ================================================================
+       Deskforge 个人工作台 Dashboard
+       依据设计稿 1:1 还原 —— 深色玻璃质感任务管理平台
+       技术栈：纯 CSS (Custom Properties) + 原生 JavaScript，零依赖
+       命名规范：.wb-* 命名空间 + BEM，与项目 cui-* 规范保持一致
+       ================================================================ */
+
+    :root {
+      /* 基础色板 */
+      --wb-bg:            #0a0b0d;
+      --wb-sidebar-bg:    #101114;
+      --wb-panel-bg:      #141518;
+      --wb-card-bg:       rgba(255, 255, 255, 0.028);
+      --wb-card-bg-hover: rgba(255, 255, 255, 0.05);
+      --wb-inset-bg:      rgba(255, 255, 255, 0.045);
+
+      /* 边框 */
+      --wb-border:        rgba(255, 255, 255, 0.065);
+      --wb-border-strong: rgba(255, 255, 255, 0.12);
+
+      /* 文字 */
+      --wb-text-1: #eceef1;
+      --wb-text-2: #9aa0a8;
+      --wb-text-3: #62686f;
+      --wb-text-4: #454a51;
+
+      /* 品牌 / 语义色 */
+      --wb-green:       #00dc6e;
+      --wb-green-deep:  #00b85c;
+      --wb-green-soft:  rgba(0, 220, 110, 0.12);
+      --wb-green-text:  #2fe387;
+      --wb-red:         #f24949;
+      --wb-red-soft:    rgba(242, 73, 73, 0.12);
+      --wb-red-text:    #ff6b6b;
+      --wb-amber-text:  #e8b04b;
+      --wb-blue:        #4c8dff;
+      --wb-violet:      #a06cd5;
+
+      /* 结构尺寸 */
+      --wb-sidebar-w: 232px;
+      --wb-panel-w:   340px;
+      --wb-radius-s:  8px;
+      --wb-radius-m:  12px;
+      --wb-radius-l:  16px;
+
+      /* 字体 */
+      --wb-font: 'Inter', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', -apple-system, sans-serif;
+      --wb-mono: 'SF Mono', 'JetBrains Mono', Consolas, monospace;
+
+      --wb-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body { height: 100%; }
+
+    body {
+      font-family: var(--wb-font);
+      background: var(--wb-bg);
+      color: var(--wb-text-1);
+      font-size: 14px;
+      line-height: 1.5;
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    button { font-family: inherit; background: none; border: none; cursor: pointer; color: inherit; }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,.08); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.14); }
+
+    /* ================================================================
+       应用壳：三栏布局
+       ================================================================ */
+    .wb-app {
+      display: grid;
+      grid-template-columns: var(--wb-sidebar-w) minmax(0, 1fr) var(--wb-panel-w);
+      height: 100vh;
+    }
+
+    /* ================================================================
+       左侧导航栏
+       ================================================================ */
+    .wb-sidebar {
+      display: flex;
+      flex-direction: column;
+      background: var(--wb-sidebar-bg);
+      border-right: 1px solid rgba(255, 255, 255, 0.045);
+      padding: 20px 12px 12px;
+      overflow-y: auto;
+      z-index: 30;
+    }
+
+    .wb-logo {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 0 10px;
+      margin-bottom: 26px;
+      user-select: none;
+    }
+    .wb-logo__mark {
+      font-size: 19px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      color: #fff;
+    }
+    .wb-logo__name {
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: 0.1px;
+      color: var(--wb-text-1);
+    }
+
+    .wb-nav { display: flex; flex-direction: column; gap: 2px; }
+
+    .wb-nav__item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      padding: 9px 12px;
+      border-radius: var(--wb-radius-s);
+      font-size: 13px;
+      color: var(--wb-text-2);
+      text-align: left;
+      transition: background 0.18s var(--wb-ease), color 0.18s var(--wb-ease);
+    }
+    .wb-nav__item:hover { background: rgba(255, 255, 255, 0.04); color: var(--wb-text-1); }
+    .wb-nav__item svg { width: 16px; height: 16px; flex-shrink: 0; opacity: 0.85; }
+    .wb-nav__item--active {
+      background: rgba(255, 255, 255, 0.075);
+      color: #fff;
+      font-weight: 500;
+    }
+    .wb-nav__item--active:hover { background: rgba(255, 255, 255, 0.085); }
+    .wb-nav__chevron { margin-left: auto; width: 14px !important; height: 14px !important; opacity: 0.5; }
+
+    /* 工作区 */
+    .wb-ws {
+      margin-top: 26px;
+      padding-top: 18px;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .wb-ws__head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      margin-bottom: 6px;
+    }
+    .wb-ws__label {
+      font-size: 11px;
+      color: var(--wb-text-3);
+      letter-spacing: 0.4px;
+    }
+    .wb-ws__add {
+      width: 20px; height: 20px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 5px;
+      color: var(--wb-text-3);
+      transition: all 0.15s var(--wb-ease);
+    }
+    .wb-ws__add:hover { background: rgba(255,255,255,.06); color: var(--wb-text-1); }
+    .wb-ws__add svg { width: 12px; height: 12px; }
+
+    .wb-ws__item {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      width: 100%;
+      padding: 8px 12px;
+      border-radius: var(--wb-radius-s);
+      font-size: 13px;
+      color: var(--wb-text-2);
+      transition: background 0.15s var(--wb-ease);
+    }
+    .wb-ws__item:hover { background: rgba(255, 255, 255, 0.04); color: var(--wb-text-1); }
+    .wb-ws__dot { width: 6px; height: 6px; border-radius: 50%; background: var(--wb-green); flex-shrink: 0; }
+    .wb-ws__chevron { margin-left: auto; width: 13px; height: 13px; opacity: 0.5; transition: transform 0.2s var(--wb-ease); }
+    .wb-ws__item--closed .wb-ws__chevron { transform: rotate(-90deg); }
+
+    /* 底部用户卡片 */
+    .wb-user {
+      margin-top: auto;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 10px 4px;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .wb-user__avatar {
+      width: 32px; height: 32px;
+      border-radius: 9px;
+      background: linear-gradient(135deg, #00e676, #00a152);
+      color: #04180c;
+      font-size: 11px;
+      font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .wb-user__meta { min-width: 0; }
+    .wb-user__name { font-size: 13px; font-weight: 500; color: var(--wb-text-1); line-height: 1.3; }
+    .wb-user__role { font-size: 11px; color: var(--wb-text-3); line-height: 1.3; }
+    .wb-user__expand {
+      margin-left: auto;
+      width: 22px; height: 22px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--wb-text-3);
+      border-radius: 6px;
+    }
+    .wb-user__expand:hover { background: rgba(255,255,255,.06); color: var(--wb-text-1); }
+    .wb-user__expand svg { width: 14px; height: 14px; }
+
+    /* ================================================================
+       主内容区
+       ================================================================ */
+    .wb-main {
+      min-width: 0;
+      overflow-y: auto;
+      padding: 22px 26px 26px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* ── 页头 ── */
+    .wb-head {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+    .wb-head__titleblock { flex-shrink: 0; }
+    .wb-head__title {
+      font-size: 21px;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+      line-height: 1.25;
+    }
+    .wb-head__subtitle {
+      font-size: 11.5px;
+      color: var(--wb-text-3);
+      margin-top: 3px;
+      letter-spacing: 0.3px;
+    }
+
+    /* 搜索框 */
+    .wb-search {
+      flex: 0 1 340px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      height: 38px;
+      padding: 0 8px 0 14px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--wb-border);
+      border-radius: 999px;
+      transition: border-color 0.18s var(--wb-ease), background 0.18s var(--wb-ease);
+    }
+    .wb-search:focus-within {
+      border-color: rgba(0, 220, 110, 0.4);
+      background: rgba(255, 255, 255, 0.055);
+    }
+    .wb-search svg { width: 15px; height: 15px; color: var(--wb-text-3); flex-shrink: 0; }
+    .wb-search input {
+      flex: 1;
+      min-width: 0;
+      background: none;
+      border: none;
+      outline: none;
+      color: var(--wb-text-1);
+      font-size: 12.5px;
+      font-family: inherit;
+    }
+    .wb-search input::placeholder { color: var(--wb-text-3); }
+    .wb-search kbd {
+      font-family: var(--wb-font);
+      font-size: 10.5px;
+      color: var(--wb-text-3);
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 5px;
+      padding: 3px 7px;
+      flex-shrink: 0;
+    }
+
+    /* 头部操作区 */
+    .wb-head__actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+      margin-left: auto;
+    }
+    .wb-iconbtn {
+      position: relative;
+      width: 38px; height: 38px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 10px;
+      border: 1px solid transparent;
+      color: var(--wb-text-2);
+      transition: all 0.16s var(--wb-ease);
+    }
+    .wb-iconbtn:hover { background: rgba(255,255,255,.05); color: var(--wb-text-1); border-color: var(--wb-border); }
+    .wb-iconbtn svg { width: 17px; height: 17px; }
+    .wb-iconbtn__dot {
+      position: absolute;
+      top: 8px; right: 9px;
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--wb-green);
+      border: 1.5px solid var(--wb-bg);
+    }
+
+    .wb-btn-new {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      height: 38px;
+      padding: 0 16px;
+      border-radius: 10px;
+      background: linear-gradient(180deg, #00e676, #00c763);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.2px;
+      box-shadow: 0 2px 14px rgba(0, 220, 110, 0.28);
+      transition: filter 0.16s var(--wb-ease), transform 0.16s var(--wb-ease);
+    }
+    .wb-btn-new:hover { filter: brightness(1.08); transform: translateY(-1px); }
+    .wb-btn-new:active { transform: translateY(0); }
+    .wb-btn-new svg { width: 14px; height: 14px; }
+
+    .wb-btn-split {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 34px; height: 38px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--wb-border);
+      color: var(--wb-text-2);
+      transition: all 0.16s var(--wb-ease);
+    }
+    .wb-btn-split:hover { background: rgba(255,255,255,.08); color: var(--wb-text-1); }
+    .wb-btn-split svg { width: 14px; height: 14px; }
+
+    /* ================================================================
+       统计卡片区
+       ================================================================ */
+    .wb-stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .wb-stat {
+      position: relative;
+      padding: 16px 18px 15px;
+      border-radius: var(--wb-radius-m);
+      background: var(--wb-card-bg);
+      border: 1px solid var(--wb-border);
+      transition: background 0.18s var(--wb-ease), transform 0.18s var(--wb-ease);
+      cursor: default;
+    }
+    .wb-stat:hover { background: var(--wb-card-bg-hover); transform: translateY(-1px); }
+    .wb-stat--danger {
+      border-color: rgba(242, 73, 73, 0.22);
+      background: linear-gradient(160deg, rgba(242, 73, 73, 0.055), rgba(242, 73, 73, 0.015));
+    }
+    .wb-stat__icon {
+      position: absolute;
+      top: 14px; right: 14px;
+      width: 36px; height: 36px;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      color: var(--wb-text-2);
+    }
+    .wb-stat__icon svg { width: 17px; height: 17px; }
+    .wb-stat--danger .wb-stat__icon {
+      background: var(--wb-red-soft);
+      border-color: rgba(242, 73, 73, 0.2);
+      color: var(--wb-red-text);
+    }
+    .wb-stat__label {
+      font-size: 12px;
+      color: var(--wb-text-2);
+      letter-spacing: 0.2px;
+    }
+    .wb-stat__value {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      margin-top: 6px;
+    }
+    .wb-stat__num {
+      font-size: 30px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      line-height: 1.1;
+      font-variant-numeric: tabular-nums;
+    }
+    .wb-stat__unit { font-size: 12px; color: var(--wb-text-3); }
+    .wb-stat__trend {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      margin-top: 7px;
+      font-size: 11.5px;
+      color: var(--wb-text-3);
+    }
+    .wb-stat__delta { display: inline-flex; align-items: center; gap: 2px; font-weight: 600; }
+    .wb-stat__delta svg { width: 10px; height: 10px; }
+    .wb-stat__delta--up { color: var(--wb-green-text); }
+    .wb-stat__delta--down { color: var(--wb-red-text); }
+
+    /* ================================================================
+       任务看板
+       ================================================================ */
+    .wb-kanban {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .wb-kanban__head {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+    .wb-kanban__title {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+    }
+
+    /* 标签页 */
+    .wb-tabs {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      padding: 3px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      border-radius: 999px;
+    }
+    .wb-tabs__tab {
+      padding: 5px 14px;
+      border-radius: 999px;
+      font-size: 12px;
+      color: var(--wb-text-3);
+      transition: all 0.16s var(--wb-ease);
+      white-space: nowrap;
+    }
+    .wb-tabs__tab:hover { color: var(--wb-text-1); }
+    .wb-tabs__tab--active {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+      font-weight: 500;
+    }
+
+    .wb-head-tools { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+    .wb-toolbtn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      height: 32px;
+      padding: 0 12px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--wb-border);
+      font-size: 12px;
+      color: var(--wb-text-2);
+      transition: all 0.15s var(--wb-ease);
+      white-space: nowrap;
+    }
+    .wb-toolbtn:hover { background: rgba(255,255,255,.07); color: var(--wb-text-1); }
+    .wb-toolbtn svg { width: 13px; height: 13px; }
+    .wb-toolbtn--icon { width: 32px; padding: 0; justify-content: center; }
+
+    /* 看板主体：任务列表 + 3D 卡片扇 */
+    .wb-kanban__body {
+      display: grid;
+      grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+      gap: 16px;
+      align-items: stretch;
+    }
+
+    /* ── 任务分组 ── */
+    .wb-groups { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+
+    .wb-group {
+      background: var(--wb-card-bg);
+      border: 1px solid var(--wb-border);
+      border-radius: var(--wb-radius-m);
+      overflow: hidden;
+    }
+    .wb-group__head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      padding: 11px 14px;
+      text-align: left;
+      transition: background 0.15s var(--wb-ease);
+    }
+    .wb-group__head:hover { background: rgba(255, 255, 255, 0.025); }
+    .wb-group__dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .wb-group__dot--blue { background: var(--wb-blue); box-shadow: 0 0 8px rgba(76, 141, 255, 0.5); }
+    .wb-group__dot--green { background: var(--wb-green); box-shadow: 0 0 8px rgba(0, 220, 110, 0.5); }
+    .wb-group__dot--violet { background: var(--wb-violet); box-shadow: 0 0 8px rgba(160, 108, 213, 0.5); }
+    .wb-group__name { font-size: 13px; font-weight: 600; color: var(--wb-text-1); }
+    .wb-group__count { font-size: 11.5px; color: var(--wb-text-3); font-variant-numeric: tabular-nums; }
+    .wb-group__chevron {
+      margin-left: auto;
+      width: 15px; height: 15px;
+      color: var(--wb-text-3);
+      transition: transform 0.22s var(--wb-ease);
+    }
+    .wb-group--closed .wb-group__chevron { transform: rotate(-90deg); }
+    .wb-group--closed .wb-group__list { display: none; }
+
+    .wb-group__list { border-top: 1px solid rgba(255, 255, 255, 0.04); }
+
+    .wb-task {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      cursor: pointer;
+      transition: background 0.14s var(--wb-ease);
+    }
+    .wb-task + .wb-task { border-top: 1px solid rgba(255, 255, 255, 0.035); }
+    .wb-task:hover { background: rgba(255, 255, 255, 0.03); }
+    .wb-task--selected { background: rgba(0, 220, 110, 0.055); box-shadow: inset 2px 0 0 var(--wb-green); }
+    .wb-task--selected:hover { background: rgba(0, 220, 110, 0.075); }
+
+    .wb-task__id {
+      font-family: var(--wb-mono);
+      font-size: 10.5px;
+      color: var(--wb-text-3);
+      letter-spacing: 0.2px;
+      flex-shrink: 0;
+      width: 86px;
+    }
+    .wb-task__name {
+      flex: 1;
+      min-width: 0;
+      font-size: 12.5px;
+      color: var(--wb-text-1);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .wb-badge {
+      flex-shrink: 0;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 5px;
+      letter-spacing: 0.3px;
+    }
+    .wb-badge--high { background: var(--wb-red-soft); color: var(--wb-red-text); }
+    .wb-badge--mid { background: rgba(255, 255, 255, 0.07); color: var(--wb-text-2); }
+    .wb-badge--low { background: rgba(255, 255, 255, 0.045); color: var(--wb-text-3); }
+    .wb-task__time {
+      flex-shrink: 0;
+      font-size: 11px;
+      color: var(--wb-text-3);
+      font-variant-numeric: tabular-nums;
+      min-width: 62px;
+      text-align: right;
+    }
+    .wb-task__status {
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      color: var(--wb-green-text);
+      min-width: 62px;
+      justify-content: flex-end;
+    }
+    .wb-task__status::before {
+      content: '';
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: var(--wb-green);
+    }
+
+    /* ── 3D 卡片扇 ── */
+    .wb-fan {
+      position: relative;
+      border-radius: var(--wb-radius-m);
+      overflow: hidden;
+      min-height: 240px;
+      background:
+        radial-gradient(120% 100% at 70% 0%, rgba(0, 220, 110, 0.05), transparent 55%),
+        rgba(255, 255, 255, 0.015);
+      border: 1px solid rgba(255, 255, 255, 0.045);
+      perspective: 1100px;
+    }
+    .wb-fan__stage {
+      position: absolute;
+      inset: 0;
+      transform-style: preserve-3d;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .wb-fan__card {
+      position: absolute;
+      width: 118px;
+      height: 158px;
+      border-radius: 12px;
+      background: linear-gradient(165deg, rgba(255,255,255,0.13), rgba(255,255,255,0.03) 60%);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+      transform-style: preserve-3d;
+      transition: transform 0.35s var(--wb-ease);
+      overflow: hidden;
+    }
+    /* 卡内模拟的模糊封面图 */
+    .wb-fan__card::before {
+      content: '';
+      position: absolute;
+      inset: 8px 8px 46px;
+      border-radius: 8px;
+      background:
+        radial-gradient(80% 70% at 30% 25%, var(--fan-c1, #3a4a5c), transparent 70%),
+        radial-gradient(70% 80% at 75% 70%, var(--fan-c2, #22303f), transparent 75%),
+        linear-gradient(160deg, #2a323c, #171c22);
+      filter: blur(2px) saturate(1.1);
+    }
+    .wb-fan__card::after {
+      content: '';
+      position: absolute;
+      left: 10px; bottom: 12px;
+      width: 22px; height: 22px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.14);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      backdrop-filter: blur(4px);
+    }
+    /* 扇形分布 */
+    .wb-fan__card:nth-child(1) { --fan-c1:#4a5a72; --fan-c2:#2c3a4d; transform: translateX(-196px) translateZ(-90px) rotateY(38deg) rotateZ(-4deg); z-index: 1; }
+    .wb-fan__card:nth-child(2) { --fan-c1:#5c4a6a; --fan-c2:#3a2f4a; transform: translateX(-138px) translateZ(-55px) rotateY(30deg) rotateZ(-2.5deg); z-index: 2; }
+    .wb-fan__card:nth-child(3) { --fan-c1:#3f5a50; --fan-c2:#26403a; transform: translateX(-74px) translateZ(-25px) rotateY(20deg) rotateZ(-1deg); z-index: 3; }
+    .wb-fan__card:nth-child(5) { --fan-c1:#4a5460; --fan-c2:#2e3640; transform: translateX(74px) translateZ(-25px) rotateY(-20deg) rotateZ(1deg); z-index: 3; }
+    .wb-fan__card:nth-child(6) { --fan-c1:#6a5a44; --fan-c2:#453a2a; transform: translateX(138px) translateZ(-55px) rotateY(-30deg) rotateZ(2.5deg); z-index: 2; }
+    .wb-fan__card:nth-child(7) { --fan-c1:#44506e; --fan-c2:#2a3350; transform: translateX(196px) translateZ(-90px) rotateY(-38deg) rotateZ(4deg); z-index: 1; }
+    .wb-fan__card:hover { transform: translateY(-8px) translateZ(0) rotateY(0) rotateZ(0) !important; z-index: 8; }
+
+    /* 中央绿色高亮卡 */
+    .wb-fan__card--main {
+      z-index: 5;
+      transform: translateZ(30px);
+      background: linear-gradient(165deg, #00e676, #00a34e 85%);
+      border-color: rgba(0, 255, 150, 0.35);
+      box-shadow: 0 22px 55px rgba(0, 220, 110, 0.35), 0 4px 14px rgba(0, 0, 0, 0.4);
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: flex-end;
+      padding: 14px;
+      gap: 4px;
+    }
+    .wb-fan__card--main::before,
+    .wb-fan__card--main::after { display: none; }
+    .wb-fan__card--main:hover { transform: translateZ(46px) translateY(-6px) !important; }
+    .wb-fan__card-icon {
+      position: absolute;
+      top: 34%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 40px; height: 40px;
+      border-radius: 11px;
+      background: rgba(255, 255, 255, 0.18);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      display: flex; align-items: center; justify-content: center;
+      color: #fff;
+    }
+    .wb-fan__card-icon svg { width: 20px; height: 20px; }
+    .wb-fan__card-title { font-size: 12.5px; font-weight: 700; color: #fff; letter-spacing: 0.3px; }
+
+    /* 悬浮统计玻璃卡 */
+    .wb-fan__float {
+      position: absolute;
+      top: 16px;
+      left: 18px;
+      z-index: 10;
+      width: 128px;
+      padding: 12px 14px 13px;
+      border-radius: 13px;
+      background: rgba(26, 28, 32, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      box-shadow: 0 14px 34px rgba(0, 0, 0, 0.5);
+      transform: rotate(-5deg) translateZ(70px);
+      transition: transform 0.3s var(--wb-ease);
+    }
+    .wb-fan__float:hover { transform: rotate(-2deg) translateZ(80px) translateY(-3px); }
+    .wb-fan__float-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 6px;
+    }
+    .wb-fan__float-title { font-size: 12px; font-weight: 600; color: var(--wb-text-1); line-height: 1.35; }
+    .wb-fan__float-sub { font-size: 10px; color: var(--wb-text-3); margin-top: 1px; }
+    .wb-fan__float-arrow {
+      flex-shrink: 0;
+      width: 18px; height: 18px;
+      border-radius: 5px;
+      background: rgba(255, 255, 255, 0.1);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--wb-text-2);
+    }
+    .wb-fan__float-arrow svg { width: 10px; height: 10px; }
+    .wb-fan__float-num {
+      margin-top: 8px;
+      font-size: 30px;
+      font-weight: 700;
+      letter-spacing: -1px;
+      line-height: 1;
+      color: #fff;
+      font-variant-numeric: tabular-nums;
+    }
+    .wb-fan__float-num small { font-size: 15px; font-weight: 600; }
+    .wb-fan__float-label { font-size: 10px; color: var(--wb-text-3); margin-top: 3px; }
+    .wb-fan__float-bar {
+      margin-top: 8px;
+      height: 3px;
+      border-radius: 2px;
+      background: rgba(255, 255, 255, 0.1);
+      overflow: hidden;
+    }
+    .wb-fan__float-bar i {
+      display: block;
+      height: 100%;
+      width: 87%;
+      border-radius: 2px;
+      background: linear-gradient(90deg, #00b85c, #00e676);
+    }
+
+    /* ================================================================
+       项目时间线（甘特图）
+       ================================================================ */
+    .wb-gantt {
+      background: var(--wb-card-bg);
+      border: 1px solid var(--wb-border);
+      border-radius: var(--wb-radius-m);
+      padding: 14px 16px 16px;
+    }
+    .wb-gantt__head {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+    .wb-gantt__title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13.5px;
+      font-weight: 700;
+    }
+    .wb-gantt__title svg { width: 15px; height: 15px; color: var(--wb-text-2); }
+    .wb-gantt__month { font-size: 12px; color: var(--wb-text-3); }
+    .wb-gantt__tools { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+    .wb-gantt__scroll { overflow-x: auto; }
+    .wb-gantt__grid {
+      position: relative;
+      display: grid;
+      grid-template-columns: 84px repeat(24, minmax(30px, 1fr));
+      grid-template-rows: 26px repeat(4, 34px);
+      min-width: 880px;
+      border-top: 1px solid rgba(255, 255, 255, 0.04);
+    }
+    /* 竖向网格线层 */
+    .wb-gantt__lines {
+      position: absolute;
+      top: 26px; bottom: 0;
+      left: 84px; right: 0;
+      background-image: repeating-linear-gradient(
+        90deg,
+        transparent 0,
+        transparent calc(100% / 24 - 1px),
+        rgba(255, 255, 255, 0.028) calc(100% / 24 - 1px),
+        rgba(255, 255, 255, 0.028) calc(100% / 24)
+      );
+      pointer-events: none;
+    }
+
+    .wb-gantt__corner {
+      grid-column: 1;
+      grid-row: 1;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    }
+    .wb-gantt__day {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      color: var(--wb-text-3);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      font-variant-numeric: tabular-nums;
+    }
+    .wb-gantt__day--today {
+      position: relative;
+      color: #fff;
+      font-weight: 700;
+    }
+    .wb-gantt__day--today::before {
+      content: '';
+      position: absolute;
+      width: 18px; height: 18px;
+      border-radius: 50%;
+      background: var(--wb-green);
+      z-index: 0;
+    }
+    .wb-gantt__day--today span { position: relative; z-index: 1; color: #04180c; }
+
+    .wb-gantt__rowlabel {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 0 4px 0 0;
+      font-size: 11.5px;
+      color: var(--wb-text-2);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+      white-space: nowrap;
+    }
+    .wb-gantt__rowlabel i {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* 今日竖线 */
+    .wb-gantt__today {
+      grid-column: 8;
+      grid-row: 2 / -1;
+      width: 1px;
+      justify-self: center;
+      background: linear-gradient(180deg, rgba(0, 220, 110, 0.55), rgba(0, 220, 110, 0.08));
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    /* 任务条 */
+    .wb-gantt__bar {
+      align-self: center;
+      height: 21px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      padding: 0 10px;
+      font-size: 10px;
+      color: rgba(255, 255, 255, 0.85);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      background: rgba(255, 255, 255, 0.09);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      z-index: 2;
+      transition: filter 0.15s var(--wb-ease), transform 0.15s var(--wb-ease);
+      cursor: default;
+    }
+    .wb-gantt__bar:hover { filter: brightness(1.25); transform: translateY(-1px); }
+    .wb-gantt__bar b { font-weight: 600; margin-right: 6px; }
+    .wb-gantt__bar span { opacity: 0.65; font-variant-numeric: tabular-nums; }
+    .wb-gantt__bar--green {
+      background: linear-gradient(90deg, #00b85c, #00e676);
+      border-color: rgba(0, 255, 150, 0.3);
+      color: #052a15;
+      font-weight: 500;
+      box-shadow: 0 3px 14px rgba(0, 220, 110, 0.3);
+    }
+    .wb-gantt__bar--green span { opacity: 0.75; }
+
+    /* ================================================================
+       右侧智能详情面板
+       ================================================================ */
+    .wb-detail {
+      padding: 12px 12px 12px 0;
+      overflow: hidden;
+      z-index: 20;
+    }
+    .wb-detail__card {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      background: var(--wb-panel-bg);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: var(--wb-radius-l);
+      overflow: hidden;
+    }
+
+    .wb-detail__head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 15px 16px 13px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .wb-detail__head svg.wb-detail__spark { width: 15px; height: 15px; color: var(--wb-green-text); }
+    .wb-detail__title { font-size: 14px; font-weight: 700; letter-spacing: 0.2px; }
+    .wb-detail__headtools { margin-left: auto; display: flex; gap: 2px; }
+    .wb-detail__headtools .wb-iconbtn { width: 30px; height: 30px; border-radius: 8px; }
+    .wb-detail__headtools .wb-iconbtn svg { width: 14px; height: 14px; }
+
+    .wb-detail__body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .wb-detail__id {
+      font-family: var(--wb-mono);
+      font-size: 11px;
+      color: var(--wb-text-3);
+      letter-spacing: 0.4px;
+    }
+    .wb-detail__namerow {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .wb-detail__name { font-size: 18px; font-weight: 700; letter-spacing: 0.2px; }
+    .wb-detail__prio {
+      font-size: 10.5px;
+      font-weight: 600;
+      color: var(--wb-red-text);
+      background: var(--wb-red-soft);
+      border: 1px solid rgba(242, 73, 73, 0.25);
+      padding: 2.5px 8px;
+      border-radius: 6px;
+      letter-spacing: 0.3px;
+    }
+    .wb-detail__desc {
+      font-size: 12px;
+      line-height: 1.75;
+      color: var(--wb-text-2);
+    }
+
+    /* 字段行 */
+    .wb-fields { display: flex; flex-direction: column; }
+    .wb-field {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 9.5px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    }
+    .wb-field:last-child { border-bottom: none; }
+    .wb-field__label { font-size: 12px; color: var(--wb-text-3); flex-shrink: 0; }
+    .wb-field__value {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 12.5px;
+      color: var(--wb-text-1);
+      min-width: 0;
+    }
+    .wb-field__value svg { width: 13px; height: 13px; color: var(--wb-text-3); flex-shrink: 0; }
+    .wb-field__avatar {
+      width: 20px; height: 20px;
+      border-radius: 6px;
+      background: linear-gradient(135deg, #4c8dff, #7b5cf0);
+      color: #fff;
+      font-size: 9px;
+      font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .wb-field__status { display: inline-flex; align-items: center; gap: 6px; color: var(--wb-green-text); }
+    .wb-field__status::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--wb-green); box-shadow: 0 0 6px rgba(0,220,110,.6); }
+    .wb-field__danger { display: inline-flex; align-items: center; gap: 6px; color: var(--wb-red-text); }
+    .wb-field__danger::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--wb-red); box-shadow: 0 0 6px rgba(242,73,73,.6); }
+
+    /* 标签 */
+    .wb-tags { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+    .wb-tag {
+      font-size: 10.5px;
+      color: var(--wb-text-2);
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      padding: 2.5px 9px;
+      border-radius: 999px;
+      transition: all 0.15s var(--wb-ease);
+      cursor: default;
+    }
+    .wb-tag:hover { background: rgba(255,255,255,.09); color: var(--wb-text-1); }
+    .wb-tag--add {
+      width: 21px; height: 21px;
+      padding: 0;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--wb-text-3);
+      cursor: pointer;
+    }
+    .wb-tag--add svg { width: 10px; height: 10px; }
+    .wb-tag--add:hover { color: var(--wb-green-text); border-color: rgba(0,220,110,.3); }
+
+    /* AI 助手建议 */
+    .wb-ai {
+      background: rgba(255, 255, 255, 0.028);
+      border: 1px solid rgba(255, 255, 255, 0.055);
+      border-radius: var(--wb-radius-m);
+      padding: 13px 14px 14px;
+    }
+    .wb-ai__head {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      margin-bottom: 10px;
+    }
+    .wb-ai__head svg { width: 13px; height: 13px; color: var(--wb-green-text); }
+    .wb-ai__title { font-size: 12.5px; font-weight: 700; }
+    .wb-ai__list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+    .wb-ai__item {
+      display: flex;
+      gap: 8px;
+      font-size: 11.5px;
+      line-height: 1.6;
+      color: var(--wb-text-2);
+    }
+    .wb-ai__item::before {
+      content: '';
+      flex-shrink: 0;
+      width: 4px; height: 4px;
+      border-radius: 50%;
+      background: var(--wb-green);
+      margin-top: 7px;
+    }
+    .wb-ai__btn {
+      width: 100%;
+      height: 32px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      font-size: 12px;
+      color: var(--wb-text-1);
+      transition: all 0.15s var(--wb-ease);
+    }
+    .wb-ai__btn:hover { background: rgba(255,255,255,.1); }
+
+    /* 底部操作 */
+    .wb-detail__footer {
+      display: flex;
+      gap: 9px;
+      padding: 13px 16px 15px;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .wb-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      height: 36px;
+      border-radius: 9px;
+      font-size: 12.5px;
+      font-weight: 500;
+      transition: all 0.16s var(--wb-ease);
+    }
+    .wb-btn svg { width: 13px; height: 13px; }
+    .wb-btn--ghost {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--wb-border);
+      color: var(--wb-text-1);
+    }
+    .wb-btn--ghost:hover { background: rgba(255,255,255,.09); }
+    .wb-btn--done {
+      flex: 1.4;
+      background: linear-gradient(180deg, #00e676, #00c763);
+      color: #fff;
+      font-weight: 600;
+      box-shadow: 0 2px 12px rgba(0, 220, 110, 0.25);
+    }
+    .wb-btn--done:hover { filter: brightness(1.08); }
+    .wb-btn--more {
+      width: 38px;
+      flex-shrink: 0;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--wb-border);
+      color: var(--wb-text-2);
+    }
+    .wb-btn--more:hover { background: rgba(255,255,255,.09); color: var(--wb-text-1); }
+
+    /* 移动端：详情面板抽屉 & 侧栏抽屉 & 悬浮按钮 */
+    .wb-fab-detail, .wb-fab-menu {
+      display: none;
+      position: fixed;
+      z-index: 60;
+      width: 42px; height: 42px;
+      border-radius: 12px;
+      background: var(--wb-panel-bg);
+      border: 1px solid var(--wb-border-strong);
+      color: var(--wb-text-1);
+      align-items: center; justify-content: center;
+      box-shadow: 0 6px 20px rgba(0,0,0,.5);
+    }
+    .wb-fab-detail { right: 16px; bottom: 16px; }
+    .wb-fab-menu { left: 16px; bottom: 16px; }
+    .wb-fab-detail svg, .wb-fab-menu svg { width: 18px; height: 18px; }
+    .wb-scrim {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      background: rgba(0, 0, 0, 0.55);
+      backdrop-filter: blur(2px);
+    }
+    .wb-scrim--show { display: block; }
+
+    /* ================================================================
+       响应式适配
+       ================================================================ */
+
+    /* ≤1400：收窄右栏 */
+    @media (max-width: 1400px) {
+      :root { --wb-panel-w: 312px; }
+      .wb-main { padding: 20px 20px 22px; }
+    }
+
+    /* ≤1200：详情面板转为右侧抽屉 */
+    @media (max-width: 1200px) {
+      .wb-app { grid-template-columns: var(--wb-sidebar-w) minmax(0, 1fr); }
+      .wb-detail {
+        position: fixed;
+        top: 0; right: 0; bottom: 0;
+        width: min(360px, 92vw);
+        padding: 12px;
+        transform: translateX(105%);
+        transition: transform 0.28s var(--wb-ease);
+      }
+      .wb-detail--open { transform: translateX(0); }
+      .wb-fab-detail { display: flex; }
+    }
+
+    /* ≤1024：看板主体单列，卡片扇移到下方 */
+    @media (max-width: 1024px) {
+      .wb-kanban__body { grid-template-columns: 1fr; }
+      .wb-fan { min-height: 260px; }
+      .wb-stats { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    /* ≤860：侧栏转为抽屉 */
+    @media (max-width: 860px) {
+      .wb-app { grid-template-columns: minmax(0, 1fr); }
+      .wb-sidebar {
+        position: fixed;
+        top: 0; left: 0; bottom: 0;
+        width: 248px;
+        transform: translateX(-105%);
+        transition: transform 0.28s var(--wb-ease);
+        box-shadow: 0 0 60px rgba(0,0,0,.5);
+      }
+      .wb-sidebar--open { transform: translateX(0); }
+      .wb-fab-menu { display: flex; }
+      .wb-search { order: 3; flex-basis: 100%; margin: 0; }
+      .wb-head { gap: 14px; }
+    }
+
+    /* ≤560：统计卡单列 */
+    @media (max-width: 560px) {
+      .wb-stats { grid-template-columns: 1fr; }
+      .wb-task__id { width: auto; }
+      .wb-task__time { display: none; }
+    }
+
+    /* 减少动态效果偏好 */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="wb-app">
+
+  <!-- ════════════════ 左侧导航 ════════════════ -->
+  <aside class="wb-sidebar" id="wbSidebar">
+    <div class="wb-logo">
+      <span class="wb-logo__mark">DF</span>
+      <span class="wb-logo__name">Deskforge</span>
+    </div>
+
+    <nav class="wb-nav" id="wbNav">
+      <button class="wb-nav__item wb-nav__item--active">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+        任务管理
+        <svg class="wb-nav__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+      <button class="wb-nav__item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+        项目总览
+      </button>
+      <button class="wb-nav__item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5" rx="1"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+        文件归档
+      </button>
+      <button class="wb-nav__item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        日程管理
+      </button>
+      <button class="wb-nav__item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        团队协作
+      </button>
+      <button class="wb-nav__item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        智能分析
+      </button>
+      <button class="wb-nav__item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        知识库
+      </button>
+      <button class="wb-nav__item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        设置中心
+      </button>
+    </nav>
+
+    <div class="wb-ws">
+      <div class="wb-ws__head">
+        <span class="wb-ws__label">我的工作区</span>
+        <button class="wb-ws__add" title="新建工作区">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+      </div>
+      <button class="wb-ws__item" id="wbWsItem">
+        <span class="wb-ws__dot"></span>
+        产品研发中心
+        <svg class="wb-ws__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+    </div>
+
+    <div class="wb-user">
+      <div class="wb-user__avatar">BR</div>
+      <div class="wb-user__meta">
+        <div class="wb-user__name">Brandon</div>
+        <div class="wb-user__role">产品经理</div>
+      </div>
+      <button class="wb-user__expand" title="账户选项">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="8 9 12 5 16 9"/><polyline points="8 15 12 19 16 15"/></svg>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ════════════════ 主内容区 ════════════════ -->
+  <main class="wb-main">
+
+    <!-- 页头 -->
+    <header class="wb-head">
+      <div class="wb-head__titleblock">
+        <h1 class="wb-head__title">任务管理</h1>
+        <p class="wb-head__subtitle">高效规划 · 智能协同 · 结果驱动</p>
+      </div>
+
+      <div class="wb-search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="wbSearchInput" placeholder="搜索任务、项目或文件..." aria-label="搜索任务、项目或文件">
+        <kbd>⌘K</kbd>
+      </div>
+
+      <div class="wb-head__actions">
+        <button class="wb-iconbtn" title="通知">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          <span class="wb-iconbtn__dot"></span>
+        </button>
+        <button class="wb-iconbtn" title="消息">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+        </button>
+        <button class="wb-btn-new">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          新增任务
+        </button>
+        <button class="wb-btn-split" title="更多操作">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- 统计卡片 -->
+    <section class="wb-stats" aria-label="任务统计">
+      <div class="wb-stat">
+        <div class="wb-stat__icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>
+        </div>
+        <div class="wb-stat__label">今日待办</div>
+        <div class="wb-stat__value"><span class="wb-stat__num">12</span><span class="wb-stat__unit">项任务</span></div>
+        <div class="wb-stat__trend">较昨日
+          <span class="wb-stat__delta wb-stat__delta--up">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+            20%
+          </span>
+        </div>
+      </div>
+
+      <div class="wb-stat">
+        <div class="wb-stat__icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        </div>
+        <div class="wb-stat__label">进行中</div>
+        <div class="wb-stat__value"><span class="wb-stat__num">28</span><span class="wb-stat__unit">项任务</span></div>
+        <div class="wb-stat__trend">较昨日
+          <span class="wb-stat__delta wb-stat__delta--up">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+            8%
+          </span>
+        </div>
+      </div>
+
+      <div class="wb-stat">
+        <div class="wb-stat__icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        </div>
+        <div class="wb-stat__label">已完成</div>
+        <div class="wb-stat__value"><span class="wb-stat__num">56</span><span class="wb-stat__unit">项任务</span></div>
+        <div class="wb-stat__trend">较昨日
+          <span class="wb-stat__delta wb-stat__delta--up">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+            15%
+          </span>
+        </div>
+      </div>
+
+      <div class="wb-stat wb-stat--danger">
+        <div class="wb-stat__icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        </div>
+        <div class="wb-stat__label">逾期任务</div>
+        <div class="wb-stat__value"><span class="wb-stat__num">3</span><span class="wb-stat__unit">项任务</span></div>
+        <div class="wb-stat__trend">较昨日
+          <span class="wb-stat__delta wb-stat__delta--down">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+            40%
+          </span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 任务看板 -->
+    <section class="wb-kanban" aria-label="任务看板">
+      <div class="wb-kanban__head">
+        <h2 class="wb-kanban__title">任务看板</h2>
+        <div class="wb-tabs" id="wbTabs">
+          <button class="wb-tabs__tab wb-tabs__tab--active">全部任务</button>
+          <button class="wb-tabs__tab">我负责的</button>
+          <button class="wb-tabs__tab">我参与的</button>
+        </div>
+        <button class="wb-toolbtn">
+          状态
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="wb-head-tools">
+          <button class="wb-toolbtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+            筛选
+          </button>
+          <button class="wb-toolbtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+            排序
+          </button>
+          <button class="wb-toolbtn wb-toolbtn--icon" title="列表视图">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="wb-kanban__body">
+        <!-- 任务分组列表 -->
+        <div class="wb-groups">
+          <div class="wb-group">
+            <button class="wb-group__head">
+              <span class="wb-group__dot wb-group__dot--blue"></span>
+              <span class="wb-group__name">需求评审</span>
+              <span class="wb-group__count">3</span>
+              <svg class="wb-group__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="wb-group__list">
+              <div class="wb-task wb-task--selected" data-task="WXB-2025-001">
+                <span class="wb-task__id">WXB-2025-001</span>
+                <span class="wb-task__name">需求评审会</span>
+                <span class="wb-badge wb-badge--high">高</span>
+                <span class="wb-task__time">今天 10:00</span>
+              </div>
+              <div class="wb-task" data-task="WXB-2025-002">
+                <span class="wb-task__id">WXB-2025-002</span>
+                <span class="wb-task__name">用户调研分析</span>
+                <span class="wb-badge wb-badge--mid">中</span>
+                <span class="wb-task__time">今天 14:00</span>
+              </div>
+              <div class="wb-task" data-task="WXB-2025-003">
+                <span class="wb-task__id">WXB-2025-003</span>
+                <span class="wb-task__name">竞品功能梳理</span>
+                <span class="wb-badge wb-badge--low">低</span>
+                <span class="wb-task__time">明天 09:30</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="wb-group">
+            <button class="wb-group__head">
+              <span class="wb-group__dot wb-group__dot--green"></span>
+              <span class="wb-group__name">产品设计</span>
+              <span class="wb-group__count">4</span>
+              <svg class="wb-group__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="wb-group__list">
+              <div class="wb-task" data-task="WXB-2025-004">
+                <span class="wb-task__id">WXB-2025-004</span>
+                <span class="wb-task__name">交互流程设计</span>
+                <span class="wb-badge wb-badge--high">高</span>
+                <span class="wb-task__status">进行中</span>
+              </div>
+              <div class="wb-task" data-task="WXB-2025-005">
+                <span class="wb-task__id">WXB-2025-005</span>
+                <span class="wb-task__name">原型评审</span>
+                <span class="wb-badge wb-badge--mid">中</span>
+                <span class="wb-task__status">进行中</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="wb-group wb-group--closed">
+            <button class="wb-group__head">
+              <span class="wb-group__dot wb-group__dot--violet"></span>
+              <span class="wb-group__name">开发实现</span>
+              <span class="wb-group__count">5</span>
+              <svg class="wb-group__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="wb-group__list">
+              <div class="wb-task" data-task="WXB-2025-006">
+                <span class="wb-task__id">WXB-2025-006</span>
+                <span class="wb-task__name">核心功能开发</span>
+                <span class="wb-badge wb-badge--high">高</span>
+                <span class="wb-task__status">进行中</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3D 卡片扇 -->
+        <div class="wb-fan" aria-label="项目文档概览">
+          <div class="wb-fan__stage">
+            <div class="wb-fan__card"></div>
+            <div class="wb-fan__card"></div>
+            <div class="wb-fan__card"></div>
+            <div class="wb-fan__card wb-fan__card--main">
+              <span class="wb-fan__card-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+              </span>
+              <span class="wb-fan__card-title">项目归档</span>
+            </div>
+            <div class="wb-fan__card"></div>
+            <div class="wb-fan__card"></div>
+            <div class="wb-fan__card"></div>
+          </div>
+
+          <div class="wb-fan__float">
+            <div class="wb-fan__float-head">
+              <div>
+                <div class="wb-fan__float-title">项目文档</div>
+                <div class="wb-fan__float-sub">2025 · Q2</div>
+              </div>
+              <span class="wb-fan__float-arrow">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>
+              </span>
+            </div>
+            <div class="wb-fan__float-num">87<small>%</small></div>
+            <div class="wb-fan__float-label">完成度</div>
+            <div class="wb-fan__float-bar"><i></i></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 项目时间线 -->
+    <section class="wb-gantt" aria-label="项目时间线">
+      <div class="wb-gantt__head">
+        <span class="wb-gantt__title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+          项目时间线
+        </span>
+        <span class="wb-gantt__month">2025年5月</span>
+        <div class="wb-gantt__tools">
+          <button class="wb-toolbtn">
+            周
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <button class="wb-toolbtn">今天</button>
+          <button class="wb-toolbtn wb-toolbtn--icon" title="上一周期">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+          <button class="wb-toolbtn wb-toolbtn--icon" title="下一周期">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="wb-gantt__scroll">
+        <div class="wb-gantt__grid" id="wbGanttGrid">
+          <div class="wb-gantt__lines"></div>
+          <div class="wb-gantt__corner"></div>
+          <!-- 日期表头（18 ~ 31，1 ~ 10），24 为"今天" -->
+          <!-- 由 JS 生成，保证列对齐 -->
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ════════════════ 右侧智能详情 ════════════════ -->
+  <aside class="wb-detail" id="wbDetail">
+    <div class="wb-detail__card">
+      <div class="wb-detail__head">
+        <svg class="wb-detail__spark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.7L19.6 10l-5.7 1.9L12 17.6l-1.9-5.7L4.4 10l5.7-1.9L12 3z"/><path d="M19 15l.9 2.6L22.5 18.5l-2.6.9L19 22l-.9-2.6-2.6-.9 2.6-.9L19 15z"/></svg>
+        <span class="wb-detail__title">智能详情</span>
+        <div class="wb-detail__headtools">
+          <button class="wb-iconbtn" title="搜索">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          </button>
+          <button class="wb-iconbtn" id="wbDetailClose" title="关闭">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="wb-detail__body">
+        <div>
+          <div class="wb-detail__id" id="detailId">WXB-2025-001</div>
+          <div class="wb-detail__namerow" style="margin-top:6px;">
+            <span class="wb-detail__name" id="detailName">需求评审会</span>
+            <span class="wb-detail__prio" id="detailPrio">高优先级</span>
+          </div>
+          <p class="wb-detail__desc" style="margin-top:8px;" id="detailDesc">与业务团队对齐需求范围，明确核心目标与验收标准，输出需求评审结论。</p>
+        </div>
+
+        <div class="wb-fields">
+          <div class="wb-field">
+            <span class="wb-field__label">负责人</span>
+            <span class="wb-field__value"><span class="wb-field__avatar">B</span>Brandon</span>
+          </div>
+          <div class="wb-field">
+            <span class="wb-field__label">所属项目</span>
+            <span class="wb-field__value">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+              Deskforge Desktop
+            </span>
+          </div>
+          <div class="wb-field">
+            <span class="wb-field__label">截止时间</span>
+            <span class="wb-field__value" id="detailDeadline">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              2025-05-24 18:00
+            </span>
+          </div>
+          <div class="wb-field">
+            <span class="wb-field__label">当前状态</span>
+            <span class="wb-field__value"><span class="wb-field__status" id="detailStatus">进行中</span></span>
+          </div>
+          <div class="wb-field">
+            <span class="wb-field__label">优先级</span>
+            <span class="wb-field__value"><span class="wb-field__danger" id="detailPriority">高</span></span>
+          </div>
+          <div class="wb-field">
+            <span class="wb-field__label">标签</span>
+            <span class="wb-tags">
+              <span class="wb-tag">评审</span>
+              <span class="wb-tag">需求</span>
+              <span class="wb-tag">关键路径</span>
+              <button class="wb-tag wb-tag--add" title="添加标签">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              </button>
+            </span>
+          </div>
+        </div>
+
+        <div class="wb-ai">
+          <div class="wb-ai__head">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.7L19.6 10l-5.7 1.9L12 17.6l-1.9-5.7L4.4 10l5.7-1.9L12 3z"/></svg>
+            <span class="wb-ai__title">AI 助手建议</span>
+          </div>
+          <div class="wb-ai__list">
+            <div class="wb-ai__item">建议关联相似历史评审文档 3 份</div>
+            <div class="wb-ai__item">检测到潜在风险：需求范围可能变更</div>
+          </div>
+          <button class="wb-ai__btn">查看建议详情</button>
+        </div>
+      </div>
+
+      <div class="wb-detail__footer">
+        <button class="wb-btn wb-btn--ghost">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          编辑任务
+        </button>
+        <button class="wb-btn wb-btn--done">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          完成任务
+        </button>
+        <button class="wb-btn wb-btn--more" title="更多">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg>
+        </button>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<!-- 遮罩 & 移动端悬浮按钮 -->
+<div class="wb-scrim" id="wbScrim"></div>
+<button class="wb-fab-detail" id="wbFabDetail" title="打开智能详情">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.7L19.6 10l-5.7 1.9L12 17.6l-1.9-5.7L4.4 10l5.7-1.9L12 3z"/></svg>
+</button>
+<button class="wb-fab-menu" id="wbFabMenu" title="打开导航">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+</button>
+
+<script>
+/* ================================================================
+   Deskforge Dashboard — 交互逻辑（原生 JS，零依赖）
+   ================================================================ */
+(function () {
+  'use strict';
+
+  /* ── 甘特图：动态生成表头 / 行标签 / 任务条，保证列严格对齐 ── */
+  var GANTT_DAYS = [];
+  for (var d = 18; d <= 31; d++) GANTT_DAYS.push(d);
+  for (var m = 1; m <= 10; m++) GANTT_DAYS.push(m);
+  var TODAY = 24; // 设计稿中"今天"为 5 月 24 日
+
+  var GANTT_ROWS = [
+    { label: '需求评审', color: '#4c8dff' },
+    { label: '产品设计', color: '#00dc6e' },
+    { label: '开发实现', color: '#a06cd5' },
+    { label: '测试验证', color: '#9aa0a8' },
+  ];
+
+  // 任务条：dayIndex 从 1 开始（对应网格列 = dayIndex + 1）
+  var GANTT_BARS = [
+    { row: 2, start: 1,  span: 7,  name: '需求评审会',   range: '5.18 - 5.24', green: false },
+    { row: 3, start: 5,  span: 15, name: '交互流程设计', range: '5.22 - 6.05', green: false },
+    { row: 4, start: 8,  span: 17, name: '核心功能开发', range: '5.25 - 6.15', green: true  },
+    { row: 5, start: 20, span: 5,  name: '测试验证',     range: '6.10 - 6.20', green: false },
+  ];
+
+  function buildGantt() {
+    var grid = document.getElementById('wbGanttGrid');
+    if (!grid) return;
+
+    // 日期表头
+    GANTT_DAYS.forEach(function (day, i) {
+      var cell = document.createElement('div');
+      cell.className = 'wb-gantt__day' + (day === TODAY ? ' wb-gantt__day--today' : '');
+      cell.style.gridColumn = String(i + 2);
+      cell.style.gridRow = '1';
+      cell.innerHTML = '<span>' + day + '</span>';
+      grid.appendChild(cell);
+    });
+
+    // 行标签
+    GANTT_ROWS.forEach(function (row, i) {
+      var label = document.createElement('div');
+      label.className = 'wb-gantt__rowlabel';
+      label.style.gridColumn = '1';
+      label.style.gridRow = String(i + 2);
+      label.innerHTML = '<i style="background:' + row.color + '"></i>' + row.label;
+      grid.appendChild(label);
+    });
+
+    // 今日竖线
+    var todayLine = document.createElement('div');
+    todayLine.className = 'wb-gantt__today';
+    grid.appendChild(todayLine);
+
+    // 任务条
+    GANTT_BARS.forEach(function (bar) {
+      var el = document.createElement('div');
+      el.className = 'wb-gantt__bar' + (bar.green ? ' wb-gantt__bar--green' : '');
+      el.style.gridColumn = (bar.start + 1) + ' / span ' + bar.span;
+      el.style.gridRow = String(bar.row);
+      el.innerHTML = '<b>' + bar.name + '</b><span>' + bar.range + '</span>';
+      el.title = bar.name + '（' + bar.range + '）';
+      grid.appendChild(el);
+    });
+  }
+
+  /* ── 侧栏导航选中态 ── */
+  function bindNav() {
+    var nav = document.getElementById('wbNav');
+    nav.addEventListener('click', function (e) {
+      var item = e.target.closest('.wb-nav__item');
+      if (!item) return;
+      nav.querySelectorAll('.wb-nav__item').forEach(function (el) {
+        el.classList.remove('wb-nav__item--active');
+        var chev = el.querySelector('.wb-nav__chevron');
+        if (chev) chev.remove();
+      });
+      item.classList.add('wb-nav__item--active');
+    });
+  }
+
+  /* ── 工作区折叠 ── */
+  function bindWorkspace() {
+    var ws = document.getElementById('wbWsItem');
+    ws.addEventListener('click', function () {
+      ws.classList.toggle('wb-ws__item--closed');
+    });
+  }
+
+  /* ── 看板标签页 ── */
+  function bindTabs() {
+    var tabs = document.getElementById('wbTabs');
+    tabs.addEventListener('click', function (e) {
+      var tab = e.target.closest('.wb-tabs__tab');
+      if (!tab) return;
+      tabs.querySelectorAll('.wb-tabs__tab').forEach(function (el) {
+        el.classList.remove('wb-tabs__tab--active');
+      });
+      tab.classList.add('wb-tabs__tab--active');
+    });
+  }
+
+  /* ── 任务分组折叠 ── */
+  function bindGroups() {
+    document.querySelectorAll('.wb-group__head').forEach(function (head) {
+      head.addEventListener('click', function () {
+        head.parentElement.classList.toggle('wb-group--closed');
+      });
+    });
+  }
+
+  /* ── 任务选中 → 联动右侧详情面板 ── */
+  var TASK_DETAILS = {
+    'WXB-2025-001': { name: '需求评审会', prio: '高优先级', desc: '与业务团队对齐需求范围，明确核心目标与验收标准，输出需求评审结论。', deadline: '2025-05-24 18:00', status: '进行中', priority: '高' },
+    'WXB-2025-002': { name: '用户调研分析', prio: '中优先级', desc: '整理目标用户访谈记录，提炼核心诉求与行为路径，形成调研结论报告。', deadline: '2025-05-24 14:00', status: '进行中', priority: '中' },
+    'WXB-2025-003': { name: '竞品功能梳理', prio: '低优先级', desc: '对标三款主流竞品，梳理任务管理模块的功能矩阵与差异化机会点。', deadline: '2025-05-25 09:30', status: '待开始', priority: '低' },
+    'WXB-2025-004': { name: '交互流程设计', prio: '高优先级', desc: '完成核心任务流的交互原型，覆盖创建、分配、流转与归档全链路。', deadline: '2025-06-05 18:00', status: '进行中', priority: '高' },
+    'WXB-2025-005': { name: '原型评审', prio: '中优先级', desc: '组织设计、研发、产品三方评审高保真原型，收敛交互细节。', deadline: '2025-06-06 12:00', status: '进行中', priority: '中' },
+    'WXB-2025-006': { name: '核心功能开发', prio: '高优先级', desc: '实现任务看板、时间线与智能详情三大核心模块的前后端联调。', deadline: '2025-06-15 18:00', status: '进行中', priority: '高' },
+  };
+
+  function bindTaskSelect() {
+    document.querySelectorAll('.wb-task').forEach(function (task) {
+      task.addEventListener('click', function () {
+        document.querySelectorAll('.wb-task').forEach(function (el) {
+          el.classList.remove('wb-task--selected');
+        });
+        task.classList.add('wb-task--selected');
+
+        var id = task.getAttribute('data-task');
+        var detail = TASK_DETAILS[id];
+        if (detail) {
+          document.getElementById('detailId').textContent = id;
+          document.getElementById('detailName').textContent = detail.name;
+          document.getElementById('detailPrio').textContent = detail.prio;
+          document.getElementById('detailDesc').textContent = detail.desc;
+          document.getElementById('detailStatus').textContent = detail.status;
+          document.getElementById('detailPriority').textContent = detail.priority;
+          document.getElementById('detailDeadline').innerHTML =
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> ' + detail.deadline;
+        }
+
+        // 窄屏下选中任务时自动打开详情抽屉
+        if (window.innerWidth <= 1200) openDetail();
+      });
+    });
+  }
+
+  /* ── 抽屉：详情面板 / 侧栏（响应式） ── */
+  var scrim = document.getElementById('wbScrim');
+  var detail = document.getElementById('wbDetail');
+  var sidebar = document.getElementById('wbSidebar');
+
+  function syncScrim() {
+    var anyOpen = detail.classList.contains('wb-detail--open') ||
+                  sidebar.classList.contains('wb-sidebar--open');
+    scrim.classList.toggle('wb-scrim--show', anyOpen);
+  }
+  function openDetail() { detail.classList.add('wb-detail--open'); syncScrim(); }
+  function closeAll() {
+    detail.classList.remove('wb-detail--open');
+    sidebar.classList.remove('wb-sidebar--open');
+    syncScrim();
+  }
+
+  function bindDrawers() {
+    document.getElementById('wbFabDetail').addEventListener('click', openDetail);
+    document.getElementById('wbFabMenu').addEventListener('click', function () {
+      sidebar.classList.add('wb-sidebar--open');
+      syncScrim();
+    });
+    document.getElementById('wbDetailClose').addEventListener('click', closeAll);
+    scrim.addEventListener('click', closeAll);
+    window.addEventListener('resize', function () {
+      if (window.innerWidth > 1200) closeAll();
+    });
+  }
+
+  /* ── 搜索快捷键 ⌘K / Ctrl+K ── */
+  function bindSearchShortcut() {
+    var input = document.getElementById('wbSearchInput');
+    document.addEventListener('keydown', function (e) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        input.focus();
+      }
+      if (e.key === 'Escape') closeAll();
+    });
+  }
+
+  /* ── 启动 ── */
+  buildGantt();
+  bindNav();
+  bindWorkspace();
+  bindTabs();
+  bindGroups();
+  bindTaskSelect();
+  bindDrawers();
+  bindSearchShortcut();
+})();
+</script>
+
+<!-- 独立交互逻辑层：模态框 / 下拉菜单 / Toast / 3D 轮播（本行为唯一新增引用） -->
+<script src="task-dashboard.js"></script>
+
+</body>
+</html>

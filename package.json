@@ -1,0 +1,60 @@
+{
+  "name": "deskforge",
+  "productName": "Deskforge",
+  "description": "A local-first personal workbench for Windows",
+  "private": true,
+  "version": "0.3.0",
+  "type": "module",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "dev": "concurrently -k \"vite --host 127.0.0.1\" \"wait-on http://127.0.0.1:5173 && electron electron/main.cjs\"",
+    "build": "vite build",
+    "verify:db": "node electron/database-check.cjs",
+    "verify:tasks": "node electron/task-service-check.cjs",
+    "verify:data": "node electron/data-manager-check.cjs",
+    "verify:workbench": "node electron/workbench-service-check.cjs",
+    "verify:package-assets": "node scripts/verify-packaged-assets.cjs",
+    "verify:packaged-runtime": "node scripts/verify-packaged-runtime.cjs",
+    "verify:task-buttons": "node scripts/verify-task-buttons.cjs",
+    "verify:productization": "node scripts/verify-productization.cjs",
+    "verify:workbench-buttons": "node scripts/verify-workbench-buttons.cjs",
+    "start": "electron electron/main.cjs",
+    "package:win": "npm run build && electron-builder --win nsis"
+  },
+  "build": {
+    "appId": "com.deskforge.app",
+    "productName": "Deskforge",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.ico",
+      "artifactName": "Deskforge-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  },
+  "dependencies": {
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^5.0.2",
+    "concurrently": "^9.2.1",
+    "electron": "^37.2.6",
+    "electron-builder": "^26.0.12",
+    "vite": "^7.0.6",
+    "wait-on": "^8.0.3"
+  },
+  "allowScripts": {}
+}

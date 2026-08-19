@@ -1,0 +1,26 @@
+# Dependencies and generated builds
+node_modules/
+dist/
+release/
+
+# Local application data and backups
+*.db
+*.db-shm
+*.db-wal
+backups/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# IDE and operating system files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.log
+
+# Codex working memory (engineering docs remain tracked under docs/)
+task_plan.md
+notes.md
