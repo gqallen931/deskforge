@@ -59,11 +59,7 @@ function createWindow() {
   });
   win.webContents.on('destroyed', () => { if (authService) authService.clear(win.webContents.id); });
 
-  if (app.isPackaged) {
-    win.loadURL(entryUrl);
-  } else {
-    win.loadURL(entryUrl);
-  }
+  win.loadURL(entryUrl);
 }
 
 app.whenReady().then(() => {
