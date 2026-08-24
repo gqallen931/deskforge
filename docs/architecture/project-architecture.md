@@ -1,21 +1,23 @@
 # Deskforge 工程架构文档
 
-> **版本**: 0.6.0
+> **版本**: 0.7.0
 > **状态**: 活跃开发中
 > **定位**: 本地优先、可安装到 Windows 的个人工作台桌面软件
 > **技术栈**: Electron + React + Vite + 原生 HTML/CSS/JavaScript + SQLite
-> **最后更新**: 2026-08-19
+> **最后更新**: 2026-08-24
 
 ---
 
 ## 一、技术栈
+
+仓库级开发与 Agent 操作约束以根目录 `AGENTS.md` 为唯一事实源；工具专用入口不得复制并分叉规则。
 
 ### 1.1 前端与桌面端
 
 | 层级 | 技术 | 版本 | 用途 |
 |------|------|------|------|
 | 桌面框架 | Electron | 37.10.3 | Windows 窗口、IPC、本地文件与安装包运行时 |
-| UI 框架 | React | 19.2.8 | 应用入口与 Dashboard 容器 |
+| UI 框架 | React | 19.2.8 | 登录、设置、通知/提醒、项目、任务、文件、时间线、分析、团队、工作区和全局搜索模块 |
 | 构建工具 | Vite | 7.3.6 | 开发服务器与生产构建 |
 | 展示层 | 原生 HTML/CSS/JavaScript | — | 保持 `A-UI/展示` 的视觉、动画与交互一致 |
 | 打包工具 | electron-builder | 26.15.3 | 生成 NSIS Windows 安装包 |
@@ -211,7 +213,7 @@ $env:ELECTRON_BUILDER_BINARIES_MIRROR='https://npmmirror.com/mirrors/electron-bu
 npm run package:win
 ```
 
-输出：`release/Deskforge-Setup-0.6.0.exe`。
+当前验证输出：`release/Deskforge-Setup-0.7.0.exe`。
 
 ---
 
@@ -222,6 +224,7 @@ npm run package:win
 3. 视觉基准唯一：以 `A-UI/展示` 为当前 1:1 参考。
 4. 安全 IPC：渲染进程不直接获得 Node.js 权限。
 5. 先稳定产品内核，再逐步将原生 Dashboard 组件化。
+6. 默认拒绝：渲染器启用 sandbox/CSP，拒绝外部导航、新窗口和系统权限请求；跨 frame 消息校验来源。
 
 ---
 
@@ -230,10 +233,8 @@ npm run package:win
 | 限制 | 原因 | 计划 |
 |------|------|------|
 | `node:sqlite` 有 ExperimentalWarning | Electron 37 对该 API 仍标记实验性 | 发布前评估升级 Electron 或切换稳定 SQLite 驱动 |
-| Dashboard 通过 iframe 接入 | 优先保证原页面 1:1 动画和内容 | 分模块迁移到 React，期间保持视觉回归 |
+| A-UI 视觉壳仍通过单个 iframe 接入 | 用户要求原页面布局、内容和动画一模一样 | 保持 DOM/CSS 契约后逐区域迁移，不再重新设计视觉 |
 | 消息与多人协作尚未启用 | 当前为本地单机产品，无账号服务 | 云同步阶段增加服务端和身份系统 |
-| 备份尚无自动保留策略 | 当前保留全部历史文件 | 后续增加按数量/时间清理策略 |
-| `package.json` 缺少 author | 商业元数据未完善 | 发布前补充公司/作者信息 |
 | 安装包未配置商业代码签名证书 | 当前仅内部测试 | 正式分发前购买并配置 Windows 代码签名 |
 | 生产构建必须保持相对资源路径 | Electron 使用 `file://` 加载 `dist/index.html` | `vite.config.js` 固定 `base: './'`，并执行资源回归检查 |
 
@@ -249,3 +250,6 @@ npm run package:win
 | 0.4.0 | 2026-08-19 | 数据库迁移、项目任务、备份历史、Windows 提醒与 CI | 支持长期本地数据安全升级 |
 | 0.5.0 | 2026-08-19 | 本地账户鉴权、全 IPC 会话守卫与契约检查 | 建立设备级安全边界；AI 与消息保留为开发中 |
 | 0.6.0 | 2026-08-19 | 安装生命周期、备份保留、更新机制、法律入口和 React 模块边界 | 推进商业发布准备与渐进迁移 |
+| 0.7.0 | 2026-08-19 | A-UI 视觉壳保真；设置、通知/提醒、项目、任务、文件和时间线 React 化 | 在不改变原稿的前提下完成业务模块迁移 |
+| 0.7.x | 2026-08-19 | 智能分析与团队协作 React 化；删除 iframe 内 `openAnalysisModal`/`openTeamModal` | 继续 Strangler Fig 渐进迁移 |
+| 0.7.x | 2026-08-24 | renderer sandbox、CSP、导航守卫、错误边界和全局搜索 React 化 | 加固本地桌面边界并完成真实数据弹窗迁移 |

@@ -95,6 +95,16 @@ function createWorkbenchService(db) {
       catch (error) { db.exec('ROLLBACK'); throw error; }
       return target;
     },
+    workspaceStats() {
+      return db.prepare(`
+        SELECT ws.id, ws.name, ws.active,
+          (SELECT COUNT(*) FROM projects p WHERE p.workspace_id=ws.id AND p.archived=0) AS projectCount,
+          (SELECT COUNT(*) FROM workspace_files f WHERE f.workspace_id=ws.id) AS fileCount,
+          (SELECT COUNT(*) FROM tasks t JOIN projects p ON t.project_id=p.id WHERE p.workspace_id=ws.id AND t.archived=0) AS taskCount,
+          (SELECT COUNT(*) FROM tasks t JOIN projects p ON t.project_id=p.id WHERE p.workspace_id=ws.id AND t.archived=0 AND t.status='done') AS doneCount
+        FROM workspaces ws ORDER BY ws.id
+      `).all().map((row) => ({ id: row.id, name: row.name, active: Boolean(row.active), projectCount: Number(row.projectCount), fileCount: Number(row.fileCount), taskCount: Number(row.taskCount), doneCount: Number(row.doneCount) }));
+    },
     createProject(input) {
       const name = required(input && input.name, '项目名称', 100);
       const description = String(input.description || '').trim().slice(0, 1000);

@@ -44,6 +44,8 @@ contextBridge.exposeInMainWorld('deskforge', {
     search: (query) => ipcRenderer.invoke('workbench:search', query),
   },
   workspaces: {
+    list: () => ipcRenderer.invoke('workspaces:list'),
+    stats: () => ipcRenderer.invoke('workspaces:stats'),
     create: (input) => ipcRenderer.invoke('workspaces:create', input),
     switch: (id) => ipcRenderer.invoke('workspaces:switch', id),
   },

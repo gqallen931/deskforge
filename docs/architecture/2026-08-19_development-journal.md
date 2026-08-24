@@ -8,6 +8,20 @@
 
 ---
 
+## 阶段 2.19：核心模块操作状态收敛（2026-08-24）
+
+- 文件索引模块增加首次加载、失败重试、操作忙碌状态与打开失败反馈；移除前明确提示原文件不会被删除。
+- 通知与提醒模块增加并行加载失败处理、重复提交保护、中文时间/重复规则/状态展示与删除确认。
+- 任务保存链路改为统一异步操作入口，失败时保留编辑内容并提示，不再产生未处理的 Promise rejection。
+- 通过 `npm run build`、安全契约、任务 CRUD 与本地提醒生命周期验证。
+- 任务、项目与设置中心随后完成全量重构：加入危险操作确认、恢复安全提示、竞态保护、中文状态和错误重试。
+- 重新生成 `0.7.0` Windows 安装包，并在真实 `win-unpacked` 成品上通过 React 模块与 A-UI 视觉壳回归。
+- 将 CDP 回归超时从 10 秒调整到 30 秒；本机完整巡检约 22 秒，原阈值会产生错误失败。
+- 最终安装包：`release/Deskforge-Setup-0.7.0.exe`，93,042,879 字节，SHA-256 `0423CEFEA06F5335A0073C4700042A9FF1D352DBD0B3153E456F853EC4CDC6DA`。
+- 最终通过 SQLite、任务、数据、工作台、迁移、提醒、认证、57 路 IPC、12 项安全边界、更新、打包资源、任务按钮、产品化、React/A-UI 视觉和安装生命周期验收。
+
+---
+
 ## 目录
 
 1. [总体思路](#1-总体思路)
@@ -461,3 +475,123 @@ docs/bugs/2026-08-19_packaged-app-black-screen.md
 | P1 | 增加备份自动保留策略和通知点击定位任务 | 数据规模增长前 |
 | P1 | 设计云端账户、同步、多人消息和设备撤销 | 联网商业版阶段 |
 | P2 | 逐模块将 iframe 内页面迁移为 React 组件 | 保持视觉回归的前提下 |
+
+---
+
+### 2.15 阶段十五：A-UI 视觉保真的 React 业务模块迁移
+
+按设置 → 通知/提醒 → 项目与任务关联 → 任务看板/筛选/排序/详情 → 时间线的顺序完成 React 功能组件，并新增文件归档 React 浏览器。所有组件继续通过 Preload 白名单调用 Electron Main，由 SQLite 持久化。
+
+#### 视觉偏差与修正
+
+首次实现将整个 Dashboard 改为新的 React 工业暗色 Shell。虽然数据和功能验证通过，但布局、内容密度和动画与 `A-UI/展示` 不一致，不符合“一模一样”的产品约束。随后撤回新 Shell 的运行入口，恢复 `public/dashboard.html` 为唯一视觉壳，仅将导航和甘特图事件桥接到 React 功能模块。Deskforge 品牌替换保留，AI 建议与消息仍显示“正在开发中”。
+
+#### 验证
+
+```text
+✅ build：38 modules transformed
+✅ Task service CRUD passed
+✅ Workbench service passed
+✅ Local reminder lifecycle passed
+✅ Local authentication passed
+✅ Data export/import/backup/settings passed
+✅ Database migrations and pre-migration snapshot passed
+✅ IPC contract：55 renderer channels registered
+✅ A-UI visual shell preserved; React modules, Gantt and animations passed
+✅ Packaged A-UI runtime rendered with 6 tasks
+✅ Deskforge A-UI branding, React settings and backup passed
+```
+
+安装包仅用于真实运行时验证，并非开启发布工作：`Deskforge-Setup-0.7.0.exe`，93,037,621 bytes，SHA-256 `B49E91E6047D2FC3D2325E10637663EAE385EBE31BD8260E4332DF7C236C35AF`。
+
+---
+
+### 2.16 阶段十六：跨 Agent 项目约束固化
+
+为解决迁移到其他 Agent 后丢失历史规则的问题，在仓库根目录新增 `AGENTS.md` 作为唯一约束事实源，并增加 Claude Code、GitHub Copilot 和 README 入口。
+
+#### 固化范围
+
+```text
+✅ Deskforge 名称、仓库和产品范围
+✅ A-UI 一比一视觉基准与 React 渐进迁移边界
+✅ AI 建议和消息保持“正在开发中”
+✅ Electron / React / Preload IPC / Main / SQLite 安全链路
+✅ 本地鉴权、备份、迁移和用户数据保护
+✅ 发布与云端功能暂缓
+✅ 测试矩阵、Git 操作和强制文档维护流程
+```
+
+#### Reader Test
+
+以没有对话上下文的新 Agent 为读者，检查其是否能回答范围、视觉、品牌、禁改模块、数据链路、未来后端、测试、发布和文档要求。答案均可由单个 `AGENTS.md` 明确得到，没有依赖本次对话的隐含前提。
+
+---
+
+### 2.17 阶段十七：智能分析与团队协作 React 化
+
+接手 Codex 交接后，在 0.7.0 基础上继续 Strangler Fig 迁移，将 iframe 内最后两个带真实业务数据的弹窗（智能分析、团队协作）迁入 React。视觉壳 `public/dashboard.html` 保持不变。
+
+#### 实现
+
+| 文件 | 实现结果 |
+|------|---------|
+| `src/features/analysis/AnalysisCenter.jsx` | 智能分析：统计卡片（总/进行中/已完成/逾期）、任务流程分布、项目进度条、工作区概览、最近文件，全部来自 `window.deskforge.workbench.dashboard()` |
+| `src/features/team/TeamCenter.jsx` | 团队协作：按 `tasks.list()` 的 `owner` 聚合成员负载（总数/进行中/已完成/逾期），8 色头像调色板，逾期按日期键计算 |
+| `src/features/dashboard/LegacyDashboardHost.jsx` | 注册 `analysis`、`team` 模块路由 |
+| `public/task-dashboard.js` | 删除 iframe 内部 `openAnalysisModal`/`openTeamModal`，导航 `'团队协作'`/`'智能分析'` 改为 `reactModule(...)` postMessage 桥接 |
+| `src/styles.css` | 新增 `rx-member-*` 团队卡片样式 |
+| `scripts/verify-react-migration.cjs` | 增加 team/analysis 模块预期与断言 |
+
+#### 遇到的问题及解决方案
+
+1. `verify:react-migration` 需真实 EXE 运行时（CDP 连接 9227 端口），非打包环境直接执行报 `fetch failed`：属预期行为，改为 `node --check` 校验脚本语法，打包后统一验收。
+2. 删除 iframe 内两个函数时替换报告"598 lines removed/587 lines added"，怀疑误删：立即用 `(Get-Content).Count` 确认文件仍为 2196 行，并搜索 `openWorkspaceMenu/openScheduleModal/init` 等关键函数确认完好，确认无内容丢失。
+
+#### 验证
+
+```text
+✅ Vite build：40 modules（较 38 增加 2 个）
+✅ lint：0 错误
+✅ 无 openAnalysisModal/openTeamModal 残留引用
+✅ verify:tasks / verify:workbench 通过
+✅ verify-react-migration.cjs 语法检查通过
+```
+
+#### 剩余 iframe 内交互
+
+- 工作区切换菜单（`openWorkspaceMenu` / `openNewWorkspaceModal`，真实 API）
+- 全局搜索（`openGlobalSearch`，真实 API）
+- 3D 卡片扇、看板过滤/排序、甘特图等纯视觉交互（保留在视觉壳内）
+
+---
+
+### 2.18 阶段十八：渲染器安全加固与全局搜索 React 化（2026-08-24）
+
+#### 实现
+
+- 主窗口启用 renderer sandbox，固定应用入口并拒绝外部导航、新窗口和权限请求。
+- React 与 Dashboard 增加 CSP；A-UI 内联引导脚本使用 SHA-256 哈希固定。
+- Legacy Bridge 校验消息来源，搜索请求携带只读 query payload。
+- 新增 `SearchCenter`，搜索任务、项目和本地文件，继续使用鉴权 IPC 与 SQLite。
+- Modal 增加 Escape、初始焦点与 Tab 焦点环；新增顶层 ErrorBoundary。
+- 新增 `verify:security`，真实 EXE 的 React 迁移验收覆盖全局搜索。
+
+#### 错误、根因与解决
+
+1. 重装系统遗留旧 SID，Codex setup 无法添加写 ACE：经授权接管 `deskforge` 所有权，并仅新增 Codex 沙箱修改权限。
+2. 首次打包连接 Electron 镜像 `EACCES`：按权限流程在沙箱外下载锁定资源后完成打包。
+3. 搜索验收硬编码 `DF` 返回空：实际隔离数据库任务不含该文本，测试改为读取真实任务名称。
+
+#### 验证
+
+```text
+✅ build：43 modules
+✅ Security contract：12 boundaries
+✅ IPC contract：57 channels
+✅ tasks / data / workbench / migrations / reminders / auth
+✅ packaged runtime / productization
+✅ React search/team/analysis/workspaces + A-UI Gantt/animations
+```
+
+安装包：93,041,167 bytes；SHA-256 `786240CC757ECDE077EB01E95A368FE5721865271F9DDB8684530E500F7ED834`。仅本地验证，未发布。

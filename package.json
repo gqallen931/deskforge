@@ -5,7 +5,7 @@
   "author": "GQALLEN931",
   "copyright": "Copyright © 2026 GQALLEN931",
   "private": true,
-  "version": "0.6.0",
+  "version": "0.7.0",
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
@@ -19,6 +19,7 @@
     "verify:reminders": "node electron/reminder-service-check.cjs",
     "verify:auth": "node electron/auth-service-check.cjs",
     "verify:ipc": "node scripts/verify-ipc-contract.cjs",
+    "verify:security": "node scripts/verify-security-contract.cjs",
     "verify:package-assets": "node scripts/verify-packaged-assets.cjs",
     "verify:packaged-runtime": "node scripts/verify-packaged-runtime.cjs",
     "verify:task-buttons": "node scripts/verify-task-buttons.cjs",
@@ -27,6 +28,7 @@
     "verify:install-lifecycle": "node scripts/verify-install-lifecycle.cjs",
     "verify:updates": "node electron/update-service-check.cjs",
     "verify:signature": "node scripts/verify-signature.cjs",
+    "verify:react-migration": "node scripts/verify-react-migration.cjs",
     "start": "electron electron/main.cjs",
     "package:win": "npm run build && electron-builder --win nsis"
   },

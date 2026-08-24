@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, dialog, shell, Notification } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
+const { pathToFileURL } = require('node:url');
 const { createStore } = require('./database.cjs');
 const { createTaskRepository } = require('./task-repository.cjs');
 const { createTaskService } = require('./task-service.cjs');
@@ -22,6 +23,9 @@ let reminderTimer;
 app.setName('Deskforge');
 
 function createWindow() {
+  const entryUrl = app.isPackaged
+    ? pathToFileURL(path.join(__dirname, '..', 'dist', 'index.html')).toString()
+    : 'http://127.0.0.1:5173/';
   const win = new BrowserWindow({
     width: 1440,
     height: 920,
@@ -33,8 +37,21 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: true,
     },
   });
+
+  const navigationKey = (value) => {
+    const parsed = new URL(value);
+    parsed.hash = '';
+    parsed.search = '';
+    return parsed.toString();
+  };
+  win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  win.webContents.on('will-navigate', (event, targetUrl) => {
+    if (navigationKey(targetUrl) !== navigationKey(entryUrl)) event.preventDefault();
+  });
+  win.webContents.session.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
 
   win.on('page-title-updated', (event) => {
     event.preventDefault();
@@ -43,9 +60,9 @@ function createWindow() {
   win.webContents.on('destroyed', () => { if (authService) authService.clear(win.webContents.id); });
 
   if (app.isPackaged) {
-    win.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
+    win.loadURL(entryUrl);
   } else {
-    win.loadURL('http://127.0.0.1:5173');
+    win.loadURL(entryUrl);
   }
 }
 
@@ -107,6 +124,8 @@ app.whenReady().then(() => {
     return { canceled: false, safetyBackup, summary };
   });
   secureHandle('workbench:dashboard', () => workbenchService.dashboard());
+  secureHandle('workspaces:list', () => workbenchService.listWorkspaces());
+  secureHandle('workspaces:stats', () => workbenchService.workspaceStats());
   secureHandle('workspaces:create', (_event, input) => workbenchService.createWorkspace(input));
   secureHandle('workspaces:switch', (_event, id) => workbenchService.switchWorkspace(id));
   secureHandle('projects:list', () => workbenchService.listProjects());
@@ -148,8 +167,12 @@ app.whenReady().then(() => {
   secureHandle('legal:open', (_event, type) => {
     const files = { privacy: 'privacy.html', terms: 'terms.html' };
     if (!files[type]) throw new Error('未知法律文档');
+    const legalPath = path.join(__dirname, '..', app.isPackaged ? 'dist' : 'public', 'legal', files[type]);
+    const legalUrl = pathToFileURL(legalPath).toString();
     const legalWindow = new BrowserWindow({ width: 860, height: 760, minWidth: 640, minHeight: 500, parent: BrowserWindow.getFocusedWindow() || undefined, backgroundColor: '#0d0f12', webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true } });
-    return legalWindow.loadFile(path.join(__dirname, '..', app.isPackaged ? 'dist' : 'public', 'legal', files[type])).then(() => true);
+    legalWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+    legalWindow.webContents.on('will-navigate', (event, targetUrl) => { if (targetUrl !== legalUrl) event.preventDefault(); });
+    return legalWindow.loadURL(legalUrl).then(() => true);
   });
   secureHandle('app:quit', () => { app.quit(); return true; });
   createWindow();

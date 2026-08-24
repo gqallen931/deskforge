@@ -5,8 +5,8 @@ const path = require('node:path');
 const { spawn, spawnSync } = require('node:child_process');
 
 const root = path.join(__dirname, '..');
-const oldInstaller = path.join(root, 'release', 'Deskforge-Setup-0.5.0.exe');
-const newInstaller = path.join(root, 'release', 'Deskforge-Setup-0.6.0.exe');
+const oldInstaller = path.join(root, 'release', 'Deskforge-Setup-0.6.0.exe');
+const newInstaller = path.join(root, 'release', 'Deskforge-Setup-0.7.0.exe');
 const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), 'deskforge-lifecycle-'));
 const installDir = path.join(sandbox, 'Deskforge');
 const appData = path.join(sandbox, 'AppData', 'Roaming');
@@ -36,26 +36,39 @@ function stop() {
   appProcess = null;
 }
 
-async function evaluate(page, expression) {
+async function evaluateOnce(page, expression) {
   return new Promise((resolve, reject) => {
     const socket = new WebSocket(page.webSocketDebuggerUrl);
-    const timer = setTimeout(() => reject(new Error('CDP evaluation timed out')), 8000);
+    const timer = setTimeout(() => { socket.close(); reject(new Error('CDP evaluation timed out after 30 seconds')); }, 30000);
     socket.addEventListener('open', () => socket.send(JSON.stringify({ id: 1, method: 'Runtime.evaluate', params: { expression, returnByValue: true, awaitPromise: true } })));
     socket.addEventListener('message', (event) => { const message = JSON.parse(event.data); if (message.id !== 1) return; clearTimeout(timer); socket.close(); if (message.error) reject(new Error(message.error.message)); else if (message.result && message.result.exceptionDetails) reject(new Error(message.result.exceptionDetails.text)); else resolve(message.result && message.result.result ? message.result.result.value : undefined); });
-    socket.addEventListener('error', () => reject(new Error('CDP connection failed')));
+    socket.addEventListener('error', () => { clearTimeout(timer); reject(new Error('CDP connection failed')); });
   });
 }
 
+async function evaluate(page, expression) {
+  let lastError;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try { return await evaluateOnce(page, expression); }
+    catch (error) {
+      lastError = error;
+      if (!/CDP connection failed/.test(error.message) || attempt === 2) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    }
+  }
+  throw lastError;
+}
+
 async function main() {
-  assert.ok(fs.existsSync(oldInstaller), '0.5.0 installer is required for upgrade verification');
-  assert.ok(fs.existsSync(newInstaller), '0.6.0 installer is required for upgrade verification');
+  assert.ok(fs.existsSync(oldInstaller), '0.6.0 installer is required for upgrade verification');
+  assert.ok(fs.existsSync(newInstaller), '0.7.0 installer is required for upgrade verification');
   install(oldInstaller);
   let page = await start(9230);
   await evaluate(page, `(async()=>{const s=await window.deskforge.auth.status();if(s.needsSetup)await window.deskforge.auth.register({username:'upgradeowner',displayName:'Upgrade Owner',password:'Deskforge123'});else if(!s.authenticated)await window.deskforge.auth.login({username:'upgradeowner',password:'Deskforge123'});const groups=await window.deskforge.tasks.list();if(!groups.length)await window.deskforge.tasks.seed([{name:'升级验证',color:'green',tasks:[{id:'DF-UPGRADE-001',name:'升级后必须保留',description:'',priority:'高',status:'todo',deadline:null,owner:'owner',participant:true}]}]);return true})()`);
   await evaluate(page, `window.deskforge.app.quit()`).catch(() => true);
   await new Promise((resolve) => setTimeout(resolve, 1200)); stop();
   const dbPath = path.join(userDataDir, 'deskforge.db');
-  assert.ok(fs.existsSync(dbPath), `0.5.0 user database missing at ${dbPath}`);
+  assert.ok(fs.existsSync(dbPath), `0.6.0 user database missing at ${dbPath}`);
 
   install(newInstaller);
   page = await start(9231);
@@ -74,7 +87,7 @@ async function main() {
   if (uninstall.error) throw uninstall.error;
   assert.equal(uninstall.status, 0, `uninstaller exited with ${uninstall.status}`);
   assert.ok(fs.existsSync(dbPath), 'uninstall removed user database');
-  console.log('Install, 0.5.0 to 0.6.0 upgrade, uninstall and user-data retention passed');
+  console.log('Install, 0.6.0 to 0.7.0 upgrade, uninstall and user-data retention passed');
 }
 
 main().catch((error) => { console.error(error.stack || error.message); process.exitCode = 1; }).finally(() => { stop(); });

@@ -6,9 +6,11 @@
 
 ## 项目状态
 
+> 新 Agent 或贡献者必须先阅读仓库根目录的 [`AGENTS.md`](../AGENTS.md)。
+
 | 模块 | 状态 | 说明 |
 |------|------|------|
-| Dashboard 前端 | ✅ 已接入 | 原样复用 `A-UI/展示` 的 HTML、动画与交互 |
+| Dashboard 前端 | ✅ 视觉保真 | 原样复用 `A-UI/展示` 的三栏布局、甘特图与动画，业务弹层迁移为 React |
 | Electron 桌面壳 | ✅ 已实现 | 开发模式与打包模式均可启动 |
 | SQLite 本地持久化 | ✅ 已实现 | 数据保存到 `%APPDATA%/Deskforge/deskforge.db` |
 | 任务管理业务闭环 | ✅ 已实现 | 结构化任务/分组表，新建、编辑、完成、归档和删除已接入真实数据 |
@@ -21,8 +23,10 @@
 | 发布生命周期 | ✅ 已验证 | 0.5.0 → 0.6.0 安装升级、卸载与用户数据保留自动验收 |
 | 自动更新 | 🟡 待配置源 | 更新状态机与 UI 已完成，等待公共 HTTPS 更新地址 |
 | Windows 代码签名 | 🔴 外部阻塞 | CI 与验证脚本已完成，等待受信任证书 |
-| React 渐进迁移 | 🟡 进行中 | AuthGate 已原生 React 化，Legacy Dashboard 边界已隔离 |
-| 商业发布准备 | 🟡 进行中 | 缺少正式图标、作者信息、代码签名与完整业务回归 |
+| React 渐进迁移 | ✅ 本阶段完成 | 设置、通知/提醒、项目、任务、文件、时间线、智能分析、团队、工作区和全局搜索已迁移，A-UI 视觉壳保持不变 |
+| 渲染器安全边界 | ✅ 已加固 | sandbox、CSP、导航/新窗口/权限守卫与 postMessage 来源校验 |
+| 核心模块操作状态 | ✅ 已加固 | 任务、项目、文件、通知和设置具备加载/错误/忙碌状态及危险操作确认 |
+| 商业发布准备 | ⏸ 暂不处理 | 当前阶段按要求聚焦视觉保真与功能迁移 |
 
 ---
 
@@ -54,6 +58,7 @@ npm run verify:ipc
 npm run verify:updates
 npm run verify:install-lifecycle
 npm run verify:workbench-buttons
+npm run verify:react-migration
 
 # 6. 生成 Windows 安装包
 npm run package:win
@@ -96,3 +101,7 @@ npm run package:win
 | 2026-08-19 | [P1 稳定性：迁移、项目任务、备份历史与提醒](features/2026-08-19_p1-stability-migrations-reminders.md) | Done |
 | 2026-08-19 | [本地鉴权与前后端 API 闭环审计](features/2026-08-19_local-auth-and-api-audit.md) | Done |
 | 2026-08-19 | [发布生命周期、更新、备份保留与 React 迁移](features/2026-08-19_release-readiness-and-update.md) | Partial / Blockers documented |
+| 2026-08-19 | [A-UI 视觉保真下的 React 模块迁移](features/2026-08-19_react-module-migration.md) | Done |
+| 2026-08-19 | [跨 Agent 项目约束与无痛交接](features/2026-08-19_agent-operating-contract.md) | Done |
+| 2026-08-24 | [渲染器安全边界与全局搜索 React 迁移](features/2026-08-24_security-search-hardening.md) | Done |
+| 2026-08-24 | [核心模块操作状态加固](features/2026-08-24_module-operation-hardening.md) | Done |

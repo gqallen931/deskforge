@@ -29,5 +29,14 @@ try {
   assert.equal(service.notifications()[0].isRead, true);
   assert.equal(service.updateProject(project.id, { name: '商业版', description: '更新' }).name, '商业版');
   assert.equal(service.deleteProject(project.id), true);
+  const stats = service.workspaceStats();
+  assert.equal(stats.length, 2);
+  assert.equal(stats[0].name, '个人工作台');
+  assert.equal(stats[0].active, false);
+  assert.equal(stats[1].name, '第二工作区');
+  assert.equal(stats[1].active, true);
+  assert.equal(stats[1].projectCount, 0);
+  assert.equal(stats[1].taskCount, 0);
+  assert.equal(stats[1].fileCount, 1);
   console.log('Workbench service passed');
 } finally { db.close(); }

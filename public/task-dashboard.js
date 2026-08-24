@@ -821,6 +821,7 @@ body.deskforge-reduce-motion *, body.deskforge-reduce-motion *::before, body.des
   }
 
   async function openSettingsModal() {
+    if (window.parent && window.parent !== window) { window.parent.postMessage({ type: 'deskforge:open-module', module: 'settings' }, '*'); return; }
     var settings = DESKFORGE && DESKFORGE.settings ? await DESKFORGE.settings.get() : { displayName: 'Brandon', role: '产品经理', workspaceName: '个人工作台', compactMode: false, reduceMotion: false };
     var updateState = DESKFORGE && DESKFORGE.updates ? await DESKFORGE.updates.status() : { status: 'disabled', message: '自动更新仅在桌面版可用' };
     var overlay = Modal.open({
@@ -918,27 +919,6 @@ body.deskforge-reduce-motion *, body.deskforge-reduce-motion *::before, body.des
     var overlay = Modal.open({ title: '新建本地提醒', small: true, body: '<div class="wbi-field"><label class="wbi-field__label">标题</label><input class="wbi-input" id="wbiReminderTitle" maxlength="120"></div><div class="wbi-field"><label class="wbi-field__label">提醒时间</label><input class="wbi-input" id="wbiReminderAt" type="datetime-local"></div><div class="wbi-field"><label class="wbi-field__label">重复</label><select class="wbi-select" id="wbiReminderRepeat"><option value="none">不重复</option><option value="daily">每天</option><option value="weekly">每周</option></select></div>', buttons: [{ label: '取消', kind: 'ghost' }, { label: '创建', kind: 'primary', onClick: async function () { await DESKFORGE.reminders.create({ title: $('#wbiReminderTitle', overlay).value, remindAt: $('#wbiReminderAt', overlay).value, repeatRule: $('#wbiReminderRepeat', overlay).value }); Toast.success('本地提醒已创建'); return true; } }] });
   }
 
-  async function openAnalysisModal() {
-    var data = await DESKFORGE.workbench.dashboard(); var s = data.stats;
-    Modal.open({ title: '智能分析', body: '<div class="wbi-settings-grid"><div class="wbi-empty-hint">任务总数<br><strong style="font-size:28px;color:#eceef1">' + s.total + '</strong></div><div class="wbi-empty-hint">进行中<br><strong style="font-size:28px;color:#2fe387">' + s.doing + '</strong></div><div class="wbi-empty-hint">已完成<br><strong style="font-size:28px;color:#4c8dff">' + s.done + '</strong></div><div class="wbi-empty-hint">已逾期<br><strong style="font-size:28px;color:#ff6b6b">' + s.overdue + '</strong></div></div>', buttons: [{ label: '关闭', kind: 'ghost' }] });
-  }
-
-  function openTeamModal() {
-    var counts = {}; $$('.wb-task').forEach(function (row) { counts[row.dataset.owner || '未分配'] = (counts[row.dataset.owner || '未分配'] || 0) + 1; });
-    var entries = Object.keys(counts).map(function (name) { return { name: name, count: counts[name] }; });
-    Modal.open({ title: '团队协作', body: recordListHtml(entries, '暂无成员', function (m) { return '<div class="wbi-note"><span class="wbi-note__icon wbi-note__icon--green">' + icon('user') + '</span><div class="wbi-note__text"><strong style="color:#eceef1">' + esc(m.name) + '</strong><div class="wbi-note__time">负责 ' + m.count + ' 项任务</div></div></div>'; }), buttons: [{ label: '关闭', kind: 'ghost' }] });
-  }
-
-  async function openWorkspaceMenu(anchor) {
-    var data = await DESKFORGE.workbench.dashboard();
-    var items = data.workspaces.map(function (ws) { return { label: ws.name, active: ws.active, onClick: async function () { await DESKFORGE.workspaces.switch(ws.id); applyWorkbenchSummary(await DESKFORGE.workbench.dashboard()); Toast.success('已切换工作区'); } }; });
-    Dropdown.open(anchor, items, { align: 'left', width: 190 });
-  }
-
-  function openNewWorkspaceModal() {
-    var overlay = Modal.open({ title: '新建工作区', small: true, body: '<div class="wbi-field"><label class="wbi-field__label">工作区名称 <em>*</em></label><input class="wbi-input" id="wbiWorkspaceName" maxlength="60"></div>', buttons: [{ label: '取消', kind: 'ghost' }, { label: '创建', kind: 'primary', onClick: async function () { var ws = await DESKFORGE.workspaces.create({ name: $('#wbiWorkspaceName', overlay).value }); await DESKFORGE.workspaces.switch(ws.id); applyWorkbenchSummary(await DESKFORGE.workbench.dashboard()); Toast.success('工作区已创建'); return true; } }] });
-  }
-
   function applyWorkbenchSummary(data) {
     var ws = $('#wbWsItem'); if (ws) ws.childNodes.forEach(function (node) { if (node.nodeType === 3 && node.textContent.trim()) node.textContent = '\n        ' + data.workspace.name + '\n        '; });
     var values = { '今日待办': data.stats.total - data.stats.done, '进行中': data.stats.doing, '已完成': data.stats.done, '逾期任务': data.stats.overdue };
@@ -950,14 +930,16 @@ body.deskforge-reduce-motion *, body.deskforge-reduce-motion *::before, body.des
   }
 
   function bindWorkbenchNavigation() {
+    function reactModule(name) { return function () { window.parent.postMessage({ type: 'deskforge:open-module', module: name }, '*'); }; }
     var actions = {
-      '项目总览': openProjectsModal,
-      '文件归档': openFilesModal,
-      '日程管理': openScheduleModal,
-      '团队协作': openTeamModal,
-      '智能分析': openAnalysisModal,
-      '知识库': openFilesModal,
-      '设置中心': openSettingsModal,
+      '任务管理': reactModule('tasks'),
+      '项目总览': reactModule('projects'),
+      '文件归档': reactModule('files'),
+      '日程管理': reactModule('reminders'),
+      '团队协作': reactModule('team'),
+      '智能分析': reactModule('analysis'),
+      '知识库': reactModule('files'),
+      '设置中心': reactModule('settings'),
     };
     $$('.wb-nav__item').forEach(function (item) {
       var label = item.textContent.trim().replace(/\s+/g, ' ');
@@ -966,13 +948,13 @@ body.deskforge-reduce-motion *, body.deskforge-reduce-motion *::before, body.des
         item.addEventListener('click', actions[key]); return true;
       });
     });
-    var addWorkspace = $('.wb-ws__add'); if (addWorkspace) addWorkspace.addEventListener('click', openNewWorkspaceModal);
-    var workspace = $('#wbWsItem'); if (workspace) workspace.addEventListener('click', function () { openWorkspaceMenu(this); });
+    var addWorkspace = $('.wb-ws__add'); if (addWorkspace) addWorkspace.addEventListener('click', reactModule('workspaces'));
+    var workspace = $('#wbWsItem'); if (workspace) workspace.addEventListener('click', reactModule('workspaces'));
+    window.addEventListener('message', function (event) { if (event.data && event.data.type === 'deskforge:refresh-summary') refreshWorkbenchSummary(); });
   }
 
   async function openGlobalSearch(query) {
-    var result = await DESKFORGE.workbench.search(query); var all = result.tasks.concat(result.projects, result.files);
-    Modal.open({ title: '搜索结果', body: recordListHtml(all, '没有找到匹配内容', function (item) { return '<div class="wbi-note"><span class="wbi-note__icon wbi-note__icon--blue">' + icon(item.type === 'file' ? 'doc' : item.type === 'project' ? 'folder' : 'check') + '</span><div class="wbi-note__text"><strong style="color:#eceef1">' + esc(item.name) + '</strong><div class="wbi-note__time">' + ({ task: '任务', project: '项目', file: '文件' }[item.type]) + '</div></div></div>'; }), buttons: [{ label: '关闭', kind: 'ghost' }] });
+    window.parent.postMessage({ type: 'deskforge:open-module', module: 'search', payload: { query: query } }, '*');
   }
 
   /* ================================================================
@@ -1779,6 +1761,7 @@ body.deskforge-reduce-motion *, body.deskforge-reduce-motion *::before, body.des
     var bellBtn = $('.wb-iconbtn[title="通知"]');
     if (bellBtn) {
       bellBtn.addEventListener('click', async function () {
+        if (window.parent && window.parent !== window) { window.parent.postMessage({ type: 'deskforge:open-module', module: 'notifications' }, '*'); return; }
         var notifications = await DESKFORGE.notifications.list();
         var panel = createEl('<div style="width:320px;"><div class="wbi-drop__head"><span>通知中心</span><button id="wbiReadAll">全部已读</button></div>' + recordListHtml(notifications, '暂无通知', function (n) { return '<div class="wbi-note"><span class="wbi-note__icon ' + (n.type === 'warning' ? 'wbi-note__icon--red' : 'wbi-note__icon--blue') + '">' + icon(n.type === 'warning' ? 'alert' : 'check') + '</span><div class="wbi-note__text"><strong style="color:#eceef1">' + esc(n.title) + '</strong><div class="wbi-note__time">' + esc(n.message) + '</div></div>' + (n.isRead ? '' : '<span class="wbi-note__unread"></span>') + '</div>'; }) + '</div>');
         $('#wbiReadAll', panel).addEventListener('click', async function () {
@@ -1961,6 +1944,10 @@ body.deskforge-reduce-motion *, body.deskforge-reduce-motion *::before, body.des
     var nextBtn = $('.wb-toolbtn--icon[title="下一周期"]');
     var todayBtn = findToolBtn('今天');
     var viewBtn = findToolBtn('周');
+    if (window.parent && window.parent !== window) {
+      [prevBtn, nextBtn, todayBtn, viewBtn, $('.wb-gantt__title')].filter(Boolean).forEach(function (button) { button.addEventListener('click', function () { window.parent.postMessage({ type: 'deskforge:open-module', module: 'timeline' }, '*'); }); });
+      return;
+    }
 
     if (prevBtn) prevBtn.addEventListener('click', function () {
       GANTT.windowStart = new Date(GANTT.windowStart.getTime() - 7 * DAY_MS);
